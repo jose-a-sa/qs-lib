@@ -4,8 +4,8 @@
 #include <qs/config.h>
 
 
-#include <type_traits>
 #include <memory>
+#include <type_traits>
 
 
 #define QS_CONFIG_ADD_CPP20_TRAITS 1
@@ -15,11 +15,9 @@
 #define QS_CONFIG_ADD_CPP23_MEMORY 1
 
 
-
 #include <cassert>
 
 #define QS_ASSERT(x, ...) assert(x)
-
 
 
 QS_NAMESPACE_BEGIN
@@ -27,8 +25,8 @@ QS_NAMESPACE_BEGIN
 
 namespace config
 {
-    static QS_INLV_CONSTEXPR11 unsigned cpp_version  = (QS_CPP_VERSION);
-    static QS_INLV_CONSTEXPR11 bool     has_noexcept = (QS_HAS_NO_EXCEPTIONS);
+    static QS_INLV_CONSTEXPR11 unsigned cpp_version  = (QS_CPP_VERSION); // Store the C++ version
+    static QS_INLV_CONSTEXPR11 bool     has_noexcept = (QS_HAS_NO_EXCEPTIONS); // Check if noexcept is supported
 } // namespace config
 
 
@@ -39,12 +37,13 @@ namespace config
 //
 #if QS_HAS_CPP(20)
 
-using std::remove_cvref; // C++20
 using std::is_bounded_array; // C++20
 using std::is_unbounded_array; // C++20
-using std::type_identity // C++20
+using std::remove_cvref; // C++20
+using std::type_identity; // C++20
 
 #elif QS_CONFIG(ADD_CPP20_TRAITS)
+// Implementations of C++20 type traits for C++17
 
 template<class T>
 struct remove_cvref : std::remove_cv<std::remove_reference_t<T>>
@@ -75,20 +74,20 @@ struct type_identity
 
 #if QS_CONFIG(ADD_CPP20_TRAITS) || QS_HAS_CPP(20)
 
-template<class T>
-using remove_cvref_t = typename remove_cvref<T>::type; // C++20
+    template<class T>
+    using remove_cvref_t = typename remove_cvref<T>::type; // C++20
 
 template<class T>
 using type_identity_t = typename type_identity<T>::type; // C++20
 
-#   if QS_HAS(VARIABLE_TEMPLATES) 
+#if QS_HAS(VARIABLE_TEMPLATES)
 
 template<class T>
 QS_INLINE_VAR constexpr bool is_bounded_array_v = is_bounded_array<T>::value; // C++20
 template<class T>
 QS_INLINE_VAR constexpr bool is_unbounded_array_v = is_unbounded_array<T>::value; // C++20
 
-#   endif // QS_HAS(VARIABLE_TEMPLATES)
+#endif // QS_HAS(VARIABLE_TEMPLATES)
 
 #endif // QS_HAS(VARIABLE_TEMPLATES) && (QS_CONFIG(ADD_CPP20_TRAITS) || QS_HAS_CPP(20))
 
@@ -104,6 +103,7 @@ using std::make_unique_for_overwrite;
 using std::to_address;
 
 #elif QS_CONFIG(ADD_CPP20_MEMORY)
+// Implementations of C++20 memory utilities for C++17
 
 template<class T>
 QS_CONSTEXPR23 std::enable_if_t<!std::is_array<T>::value, std::unique_ptr<T>> make_unique_for_overwrite()
@@ -128,9 +128,9 @@ namespace detail
     {};
 
     template<class Pointer>
-    struct is_smart_pointer<Pointer,
-                            std::void_t<decltype(std::declval<Pointer const&>().operator->()),
-                                   decltype(std::pointer_traits<Pointer>::to_address(std::declval<Pointer const&>()))>>
+    struct is_smart_pointer<
+        Pointer, std::void_t<decltype(std::declval<Pointer const&>().operator->()),
+                             decltype(std::pointer_traits<Pointer>::to_address(std::declval<Pointer const&>()))>>
         : std::true_type
     {};
 
@@ -145,8 +145,8 @@ namespace detail
     };
 
     template<class Pointer>
-    struct to_address_helper<Pointer,
-                             std::void_t<decltype(std::pointer_traits<Pointer>::to_address(std::declval<Pointer const&>()))>>
+    struct to_address_helper<
+        Pointer, std::void_t<decltype(std::pointer_traits<Pointer>::to_address(std::declval<Pointer const&>()))>>
     {
         using result_type = decltype(std::pointer_traits<Pointer>::to_address(std::declval<Pointer const&>()));
         static constexpr result_type call(Pointer const& p) noexcept
@@ -156,7 +156,8 @@ namespace detail
     };
 
     // enable_if is needed here to avoid instantiating checks for fancy pointers on raw pointers
-    template<class Pointer, class = std::enable_if_t<std::conjunction<std::is_class<Pointer>, is_smart_pointer<Pointer>>::value>>
+    template<class Pointer,
+             class = std::enable_if_t<std::conjunction<std::is_class<Pointer>, is_smart_pointer<Pointer>>::value>>
     inline QS_CONSTEXPR11 std::decay_t<typename to_address_helper<Pointer>::result_type>
                           to_address_impl(Pointer const& p) QS_NOEXCEPT
     {
@@ -178,9 +179,7 @@ inline QS_CONSTEXPR11 auto to_address(Pointer const& p) QS_NOEXCEPT -> decltype(
 #endif
 
 
-
 QS_NAMESPACE_END
-
 
 
 #endif // QS_BASE_H_
