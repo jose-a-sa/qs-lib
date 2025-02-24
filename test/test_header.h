@@ -1,6 +1,8 @@
 #ifndef QS_TEST_HEADER_H
 #define QS_TEST_HEADER_H
 
+#include <qs/base.h>
+
 #ifdef QS_TESTING
 
 #define QS_FORWARD_TEST(test_case_name, test_name) \

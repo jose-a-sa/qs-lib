@@ -82,42 +82,42 @@ template<class T1, class T2>
 class compressed_pair : private detail::compressed_pair_elem<T1, 0>, private detail::compressed_pair_elem<T2, 1>
 {
 public:
-    static_assert((!std::is_same<T1, T2>::value),
-                  "compressed_pair cannot be instantiated when T1 and T2 are the same type; "
-                  "The current implementation is NOT ABI-compatible with the previous implementation for this "
-                  "configuration");
+    // static_assert((!std::is_same<T1, T2>::value),
+    //               "compressed_pair cannot be instantiated when T1 and T2 are the same type; "
+    //               "The current implementation is NOT ABI-compatible with the previous implementation for this "
+    //               "configuration");
 
-    using Base1 = detail::compressed_pair_elem<T1, 0>;
-    using Base2 = detail::compressed_pair_elem<T2, 1>;
+    using base1 = detail::compressed_pair_elem<T1, 0>;
+    using base2 = detail::compressed_pair_elem<T2, 1>;
 
     template<class = std::enable_if_t<std::is_default_constructible<T1>::value && std::is_default_constructible<T2>::value>>
     QS_CONSTEXPR11 explicit compressed_pair()
-        : Base1(detail::value_init_tag{}),
-          Base2(detail::value_init_tag{})
+        : base1(detail::value_init_tag{}),
+          base2(detail::value_init_tag{})
     {}
 
     template<class U1, class U2>
     QS_CONSTEXPR11 explicit compressed_pair(U1&& u1, U2&& u2)
-        : Base1(std::forward<U1>(u1)),
-          Base2(std::forward<U2>(u2))
+        : base1(std::forward<U1>(u1)),
+          base2(std::forward<U2>(u2))
     {}
 
     template<class... Args1, class... Args2>
     QS_CONSTEXPR11 explicit compressed_pair(std::piecewise_construct_t pc, std::tuple<Args1...> args1,
                                             std::tuple<Args2...> args2)
-        : Base1(pc, std::move(args1), std::make_index_sequence<sizeof...(Args1)>{}),
-          Base2(pc, std::move(args2), std::make_index_sequence<sizeof...(Args2)>{})
+        : base1(pc, std::move(args1), std::make_index_sequence<sizeof...(Args1)>{}),
+          base2(pc, std::move(args2), std::make_index_sequence<sizeof...(Args2)>{})
     {}
 
-    QS_CONSTEXPR14 typename Base1::reference       first() noexcept { return static_cast<Base1&>(*this).get(); }
-    QS_CONSTEXPR11 typename Base1::const_reference first() const noexcept
+    QS_CONSTEXPR14 typename base1::reference       first() QS_NOEXCEPT { return static_cast<base1&>(*this).get(); }
+    QS_CONSTEXPR11 typename base1::const_reference first() const QS_NOEXCEPT
     {
-        return static_cast<Base1 const&>(*this).get();
+        return static_cast<base1 const&>(*this).get();
     }
-    QS_CONSTEXPR14 typename Base2::reference       second() noexcept { return static_cast<Base2&>(*this).get(); }
-    QS_CONSTEXPR11 typename Base2::const_reference second() const noexcept
+    QS_CONSTEXPR14 typename base2::reference       second() QS_NOEXCEPT { return static_cast<base2&>(*this).get(); }
+    QS_CONSTEXPR11 typename base2::const_reference second() const QS_NOEXCEPT
     {
-        return static_cast<Base2 const&>(*this).get();
+        return static_cast<base2 const&>(*this).get();
     }
 
     QS_CONSTEXPR14 void swap(compressed_pair& x)

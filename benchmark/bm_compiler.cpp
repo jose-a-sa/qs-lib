@@ -20,7 +20,7 @@ namespace bench
         using int_type = int64_t;
 
         // Calculate the number of bytes and elements
-        auto const bytes = (1ull << s.range(0));
+        auto const bytes = 1 << s.range(0);
         auto const count = bytes / sizeof(int_type);
 
         // Initialize random number generator
@@ -29,7 +29,7 @@ namespace bench
 
         // Create and fill a vector with random values
         std::vector<int> v(count);
-        std::generate(v.begin(), v.end(), [&]() { return rand_unif(eng); });
+        std::generate(v.begin(), v.end(), [&]{ return rand_unif(eng); });
 
         // Reseed the random number generator
         eng.seed(std::random_device{}());
@@ -44,8 +44,7 @@ namespace bench
         {
             double sum = 0.;
             for(auto i: indx)
-                sum += (std::sqrt(v[i]) - std::sqrt(i)) * i;
-            // Make sure that sum isn't optimized out
+                sum += v[i];
             benchmark::DoNotOptimize(sum);
         }
 
@@ -73,7 +72,7 @@ namespace bench
         }
     }
     // Register the benchmark with a range of string lengths
-    BENCHMARK(BM_SmallStringOptimization)->DenseRange(0, 32);
+    BENCHMARK(BM_SmallStringOptimization)->DenseRange(1, 32);
 
 } // namespace bench
 

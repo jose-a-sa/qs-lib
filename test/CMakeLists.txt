@@ -10,25 +10,12 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
 # Enable CTest testing
 enable_testing()
 
-# If googletest is installed in the system use find_package
-# find_package(GTest REQUIRED)
-# Otherwise use FetchContent:
-include(FetchContent)
-set(GTEST_VERSION release-1.12.1)
-FetchContent_Declare(
-   googletest
-   GIT_REPOSITORY https://github.com/google/googletest
-   GIT_TAG ${GTEST_VERSION} # Pick the desired version of GoogleTest
-)
-# For Windows: Prevent overriding the parent project's compiler/linker settings
-set(gtest_force_shared_crt ON CACHE BOOL "For Windows: Prevent overriding the parent project's compiler/linker settings" FORCE)
-# Fetch and build GoogleTest
-FetchContent_MakeAvailable(googletest)
+include(../cmake/FetchGoogleTest.cmake)
 
-# CMake functions to use with googletest
 include(GoogleTest)
 
-# Macro that take binary name and folder and creates a test with all .cpp inside  
+
+# Macro that take binary name and folder and creates a test with all .cpp inside
 function(add_test_binary NAME LOCATION_SRC)
     # find all cpp files for testing under the folder
 
@@ -62,3 +49,5 @@ endfunction()
 
 
 add_test_binary(fenwick_tree containers/test_fenwick_tree.cpp)
+
+add_test_binary(lifetime_tracker utils/test_lifetime_tracker.cpp)

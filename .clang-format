@@ -23,7 +23,7 @@ AlignConsecutiveAssignments: Consecutive
 AlignConsecutiveDeclarations: Consecutive
 AlignOperands: true
 AlignTrailingComments: false
-BinPackArguments: false
+BinPackArguments: true
 BreakBeforeBraces: Custom
 BraceWrapping:
   AfterClass: true

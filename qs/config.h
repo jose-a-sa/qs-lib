@@ -2,6 +2,7 @@
 #define QS_CONFIG_H_
 
 #include <qs/macros.h>
+#include <version>
 
 /*** UTILITY MACROS ***/
 
@@ -22,17 +23,34 @@
 
 /*** EXCEPTION HANDLING ***/
 
-
 #ifndef QS_HAS_NO_EXCEPTIONS
 #if defined(_MSC_VER)
 #include <cstddef> // for _H_AS_EXCEPTIONS
 #endif
-#if defined(__cpp_exceptions) || defined(__EXCEPTIONS) || (_H_AS_EXCEPTIONS)
+#if defined(__cpp_exceptions) || defined(__EXCEPTIONS) || _H_AS_EXCEPTIONS
 #define QS_HAS_NO_EXCEPTIONS 0
 #else
 #define QS_HAS_NO_EXCEPTIONS 1
 #endif
 #endif
+
+#if QS_HAS_NO_EXCEPTIONS
+#define QS_NOEXCEPT
+#define QS_NOEXCEPT_B(...)
+#define QS_NOEXCEPT_V(...)
+#else
+#define QS_NOEXCEPT noexcept
+#define QS_NOEXCEPT_B(...) noexcept((__VA_ARGS__))
+#define QS_NOEXCEPT_V(...) noexcept(noexcept((__VA_ARGS__)))
+#endif
+
+
+/*** ASSERTION HANDLING ***/
+
+#include <cassert>
+
+#define QS_ASSERT(x, ...) assert(x && (__VA_ARGS__))
+
 
 
 /*** COMPILER VARIABLES ***/
@@ -98,12 +116,10 @@
 #define QS_HAS_CPP20 (QS_CPLUSPLUS >= 202002L)
 #define QS_HAS_CPP23 (QS_CPLUSPLUS >= 202300L)
 
-// Parse version into a number, e.g. 11, 14, 17, 20, 23
+// Parse version into a number, e.g. 03, 11, 14, 17, 20, 23
 #define QS_CPP_VERSION ((QS_CPLUSPLUS / 100) - 2000)
 // Define macro to check if in standard version
 #define QS_HAS_CPP(v) (QS_CPP_VERSION >= (v))
-// Define macro to check if in standard version and MSVC version
-#define QS_HAS_CPP_OR_MSVC_VER(cpp, msvc) (QS_CPP_VERSION >= (v) || QS_COMPILER_MSVC_VER >= (msvc))
 
 
 // panic if version is less than C++11
@@ -112,114 +128,82 @@ static_assert(QS_HAS_CPP(QS_MIN_CPP_VERSION), "QS library only is supported for 
 
 /*** CPP FEATURES VARIABLES ***/
 
-// Presence of C++0x
-#if defined(_HAS_CPP0X)
-#define QS_HAS_CPP0X _HAS_CPP0X
-#else
-#define QS_HAS_CPP0X 0
-#endif
-
-
 // Presence of C++11 features
-#define QS_HAS_CONSTEXPR_11 QS_HAS_CPP_OR_MSVC_VER(11, 1900)
-#define QS_HAS_ENABLE_IF QS_HAS_CPP(11)
+#define QS_HAS_CONSTEXPR_11 (QS_CPP_VERSION >= 11 || QS_COMPILER_MSVC_VER >= 1900)
 
 // Presence of C++14 features
 #define QS_HAS_CONSTEXPR_14 QS_HAS_CPP(14)
-#define QS_HAS_VARIABLE_TEMPLATES QS_HAS_CPP(14)
 
 // Presence of C++17 features
 #define QS_HAS_CONSTEXPR_17 QS_HAS_CPP(17)
-#define QS_HAS_DEPRECATED QS_HAS_CPP(17)
-#define QS_HAS_NODISCARD QS_HAS_CPP(17)
-
-#if ((QS_HAS_CPP(17) && !QS_IN_BETWEEN(QS_COMPILER_MSVC_VER, 1, 1913)) || defined(__cpp_deduction_guides))
-#define QS_HAS_CTAD 1
-#else
-#define QS_HAS_CTAD 0
-#endif
-
-#if (QS_HAS_CPP(17) || defined(__cpp_inline_variables))
-#define QS_HAS_INLINE_VAR 1
-#else
-#define QS_HAS_INLINE_VAR 0
-#endif
-
 
 // Presence of C++20 features
 #define QS_HAS_CONSTEXPR_20 QS_HAS_CPP(20)
 
 // Presence of C++ library features:
-#define QS_HAS_STD_BYTE QS_HAS_CPP(17)
-#define QS_HAS_STD_CONTAINER_DATA_METHOD (QS_HAS_CPP(14) || (QS_COMPILER_MSVC_VER >= 1500 && QS_H_AS_CPP0X))
-#define QS_HAS_STD_DATA QS_HAS_CPP(17)
+
 
 
 /*** CPP DEFINE MACROS FOR KEYWORDS ***/
 
-#if QS_HAS_NO_EXCEPTIONS
-#define QS_NOEXCEPT
-#define QS_NOEXCEPT_B(...)
-#define QS_NOEXCEPT_V(...)
-#else
-#define QS_NOEXCEPT noexcept
-#define QS_NOEXCEPT_B(...) noexcept((__VA_ARGS__))
-#define QS_NOEXCEPT_V(...) noexcept(noexcept((__VA_ARGS__)))
-#endif
-
-#if QS_HAS_CONSTEXPR_11
+#if (QS_HAS_CPP(11) || QS_COMPILER_MSVC_VER >= 1900)
 #define QS_CONSTEXPR11 constexpr
 #else
 #define QS_CONSTEXPR11
 #endif
 
-#if QS_HAS_CONSTEXPR_14
+#if QS_HAS_CPP(14)
 #define QS_CONSTEXPR14 constexpr
 #else
 #define QS_CONSTEXPR14
 #endif
 
-#if QS_HAS_CONSTEXPR_17
+#if QS_HAS_CPP(17)
 #define QS_CONSTEXPR17 constexpr
 #else
 #define QS_CONSTEXPR17
 #endif
 
-#if QS_HAS_CONSTEXPR_20
+#if QS_HAS_CPP(20)
 #define QS_CONSTEXPR20 constexpr
 #else
 #define QS_CONSTEXPR20
 #endif
 
-#if QS_HAS_CONSTEXPR_23
+#if QS_HAS_CPP(23)
 #define QS_CONSTEXPR20 constexpr
 #else
 #define QS_CONSTEXPR23
 #endif
 
-#if QS_HAS_DEPRECATED
-#define QS_DEPRECATED(msg) [[deprecated(msg)]]
+
+#if defined(__has_cpp_attribute)
+#  if __has_cpp_attribute(deprecated)
+#    define QS_DEPRECATED(msg) [[deprecated(msg)]]
+#  else
+#    define QS_DEPRECATED(msg)
+#  endif
 #else
-#define QS_DEPRECATED(msg)
+#  define QS_DEPRECATED(msg)
 #endif
 
-#if QS_HAS_NODISCARD
-#define QS_NODISCARD [[nodiscard]]
+
+#if defined(__has_cpp_attribute)
+#  if __has_cpp_attribute(nodiscard)
+#    define QS_NODISCARD [[nodiscard]]
+#  else
+#    define QS_NODISCARD
+#  endif
 #else
-#define QS_NODISCARD
+#  define QS_NODISCARD
 #endif
 
-#if QS_HAS_INLINE_VAR
+
+#if defined(__cpp_inline_variables)
 #define QS_INLINE_VAR inline
 #else
 #define QS_INLINE_VAR
 #endif
-
-#define QS_INLV_CONSTEXPR11 QS_INLINE_VAR QS_CONSTEXPR11
-#define QS_INLV_CONSTEXPR14 QS_INLINE_VAR QS_CONSTEXPR14
-#define QS_INLV_CONSTEXPR17 QS_INLINE_VAR QS_CONSTEXPR17
-#define QS_INLV_CONSTEXPR20 QS_INLINE_VAR QS_CONSTEXPR20
-#define QS_INLV_CONSTEXPR23 QS_INLINE_VAR QS_CONSTEXPR20
 
 
 #endif // QS_CONFIG_H_

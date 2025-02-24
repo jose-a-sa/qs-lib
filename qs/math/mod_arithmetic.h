@@ -39,7 +39,7 @@ namespace detail
     // The final values of x and y are the coefficients that satisfy the equation.
     template<class T, class U>
     inline constexpr std::enable_if_t<std::conjunction<std::is_integral<T>, std::is_integral<U>>::value,
-                               extended_gcd_impl_return_t<T, U>>
+                                      extended_gcd_impl_return_t<T, U>>
     extended_gcd_impl(T a, U b)
     {
         using common_t = std::common_type_t<T, U>;
@@ -50,18 +50,15 @@ namespace detail
         common_t temp_x = 0, temp_y = 0, temp_a1 = 0, q = 0;
         while(b1)
         {
-            q = a1 / b1; // Quotient
-
-            // Update temporary variables
+            q = a1 / b1;
+            // Save temporary variables
             temp_x  = x1;
             temp_y  = y1;
             temp_a1 = b1;
-
             // Perform the Euclidean algorithm step
             x1 = x - q * x1;
             y1 = y - q * y1;
             b1 = a1 - q * b1;
-
             // Update x, y, and a1
             x  = temp_x;
             y  = temp_y;
@@ -79,18 +76,17 @@ namespace detail
     inline constexpr auto extended_gcd_impl_combine(std::pair<T1, Tup1> left, std::pair<T2, Tup2> right)
     {
         using common_t = std::common_type_t<T1, T2>;
-
         auto     combined_result = extended_gcd_impl(left.first, right.first);
         common_t combined_gcd    = combined_result.first;
         common_t x               = std::get<0>(combined_result.second);
         common_t y               = std::get<1>(combined_result.second);
 
-        auto combined_coefs_left =
-            std::apply([&](auto... cs) { return std::make_tuple((cs * x)...); }, std::move(left.second));
-        auto combined_coefs_right =
-            std::apply([&](auto... cs) { return std::make_tuple((cs * y)...); }, std::move(right.second));
+        auto combined_coefficients = std::tuple_cat(
+            std::apply([&](auto... cs) { return std::make_tuple((cs * x)...); }, std::move(left.second)),
+            std::apply([&](auto... cs) { return std::make_tuple((cs * y)...); }, std::move(right.second))
+        );
 
-        return std::make_pair(combined_gcd, std::tuple_cat(std::move(combined_coefs_left), std::move(combined_coefs_right)));
+        return std::make_pair(combined_gcd, std::move(combined_coefficients));
     }
 
     // Extended GCD implementation for multiple integers.
@@ -136,19 +132,18 @@ constexpr detail::extended_gcd_impl_return_t<Ts...> extended_gcd(Ts... args)
 }
 
 
-
 namespace detail
 {
     template<class T, class U>
-    constexpr int binomial_mod2_impl(T n, U k)
+    constexpr std::common_type_t<T, U> binomial_mod2_impl(T n, U k)
     {
         using common_t = std::common_type_t<T, U>;
         if(n < k) return 0;
         constexpr common_t full_ones = (~common_t(0));
-        common_t const mask = n | ~(n | k);
+        common_t const     mask      = n | ~(n | k);
         return (mask & full_ones) == full_ones;
     }
-}
+} // namespace detail
 
 
 QS_NAMESPACE_END

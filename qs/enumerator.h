@@ -15,6 +15,8 @@ public:
     struct iterator
     {
         using reference = typename std::iterator_traits<Iterator>::reference;
+        using const_reference = typename std::iterator_traits<Iterator>::const_reference;
+
         constexpr iterator(Iterator iter, Index start = -1)
             : current_{start},
               iter_{iter} {};
@@ -38,8 +40,8 @@ public:
           begin_{begin},
           end_{end}
     {}
+    
     constexpr auto begin() const { return iterator(begin_, start_); }
-
     constexpr auto end() const { return iterator(end_); }
 
 private:

@@ -20,29 +20,29 @@ namespace detail
 
         QS_CONSTEXPR11 explicit exception_guard_impl(Rollback rollback)
             : rollback_(std::move(rollback)),
-              commit_(false) {};
+              complete_(false) {};
 
-        QS_CONSTEXPR11 exception_guard_impl(exception_guard_impl&& other) noexcept(
+        QS_CONSTEXPR11 exception_guard_impl(exception_guard_impl&& other) QS_NOEXCEPT_B(
             std::is_nothrow_move_constructible<Rollback>::value)
             : rollback_(std::move(other.rollback_)),
-              commit_(std::exchange(other.commit_, true))
+              complete_(std::exchange(other.complete_, true))
         {}
 
         exception_guard_impl(exception_guard_impl const&)            = delete;
         exception_guard_impl& operator=(exception_guard_impl const&) = delete;
         exception_guard_impl& operator=(exception_guard_impl&&)      = delete;
 
-        QS_CONSTEXPR14 void complete() noexcept { commit_ = true; }
+        QS_CONSTEXPR14 void complete() QS_NOEXCEPT { complete_ = true; }
 
         QS_CONSTEXPR20 ~exception_guard_impl()
         {
-            if(!commit_)
+            if(!complete_)
                 rollback_();
         }
 
     private:
         Rollback rollback_;
-        bool     commit_;
+        bool     complete_;
     };
 
     template<class Rollback> // HasExceptions = false
@@ -51,26 +51,26 @@ namespace detail
         exception_guard_impl() = delete;
 
         QS_CONSTEXPR11 explicit exception_guard_impl(Rollback)
-            : commit_(false) {};
+            : complete_(false) {};
 
         exception_guard_impl(exception_guard_impl const&)            = delete;
         exception_guard_impl& operator=(exception_guard_impl const&) = delete;
 
-        QS_CONSTEXPR11 exception_guard_impl(exception_guard_impl&& other) noexcept(
+        QS_CONSTEXPR11 exception_guard_impl(exception_guard_impl&& other) QS_NOEXCEPT_B(
             std::is_nothrow_move_constructible<Rollback>::value)
-            : commit_(std::exchange(other.commit_, true))
+            : complete_(std::exchange(other.complete_, true))
         {}
         exception_guard_impl& operator=(exception_guard_impl&&) = delete;
 
-        QS_CONSTEXPR14 void complete() noexcept { commit_ = true; }
+        QS_CONSTEXPR14 void complete() QS_NOEXCEPT { complete_ = true; }
 
         QS_CONSTEXPR20 ~exception_guard_impl()
         {
-            QS_ASSERT(commit_, "exception_guard not completed with no exceptions");
+            QS_ASSERT(complete_, "exception_guard not completed with no exceptions");
         }
 
     private:
-        bool commit_;
+        bool complete_;
     };
 
 } // namespace detail

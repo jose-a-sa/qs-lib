@@ -24,16 +24,7 @@ endif()
 option(BUILD_TESTING "" ON)
 option(BUILD_BENCHMARK "" ON)
 
-# If fmtlib installed in the system use find_package
-# find_package(fmt REQUIRED)
-# Otherwise use FetchContent:
-set(FMTLIB_VERSION 11.0.2)
-include(FetchContent)
-FetchContent_Declare(fmtlib
-    GIT_REPOSITORY https://github.com/fmtlib/fmt
-    GIT_TAG ${FMTLIB_VERSION}
-)
-FetchContent_MakeAvailable(fmtlib)
+include(cmake/FetchFmtLib.cmake)
 
 # Add main folder as include directory
 include_directories(${CMAKE_SOURCE_DIR})
