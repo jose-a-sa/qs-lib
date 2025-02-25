@@ -52,7 +52,6 @@
 #define QS_ASSERT(x, ...) assert(x && (__VA_ARGS__))
 
 
-
 /*** COMPILER VARIABLES ***/
 
 // Compiler versions:
@@ -122,29 +121,8 @@
 #define QS_HAS_CPP(v) (QS_CPP_VERSION >= (v))
 
 
-// panic if version is less than C++11
-static_assert(QS_HAS_CPP(QS_MIN_CPP_VERSION), "QS library only is supported for C++" QS_STRINGIFY(QS_MIN_CPP_VERSION) " version or above");
-
-
 /*** CPP FEATURES VARIABLES ***/
 
-// Presence of C++11 features
-#define QS_HAS_CONSTEXPR_11 (QS_CPP_VERSION >= 11 || QS_COMPILER_MSVC_VER >= 1900)
-
-// Presence of C++14 features
-#define QS_HAS_CONSTEXPR_14 QS_HAS_CPP(14)
-
-// Presence of C++17 features
-#define QS_HAS_CONSTEXPR_17 QS_HAS_CPP(17)
-
-// Presence of C++20 features
-#define QS_HAS_CONSTEXPR_20 QS_HAS_CPP(20)
-
-// Presence of C++ library features:
-
-
-
-/*** CPP DEFINE MACROS FOR KEYWORDS ***/
 
 #if (QS_HAS_CPP(11) || QS_COMPILER_MSVC_VER >= 1900)
 #define QS_CONSTEXPR11 constexpr
@@ -178,24 +156,24 @@ static_assert(QS_HAS_CPP(QS_MIN_CPP_VERSION), "QS library only is supported for 
 
 
 #if defined(__has_cpp_attribute)
-#  if __has_cpp_attribute(deprecated)
-#    define QS_DEPRECATED(msg) [[deprecated(msg)]]
-#  else
-#    define QS_DEPRECATED(msg)
-#  endif
+#if __has_cpp_attribute(deprecated)
+#define QS_DEPRECATED(msg) [[deprecated(msg)]]
 #else
-#  define QS_DEPRECATED(msg)
+#define QS_DEPRECATED(msg)
+#endif
+#else
+#define QS_DEPRECATED(msg)
 #endif
 
 
 #if defined(__has_cpp_attribute)
-#  if __has_cpp_attribute(nodiscard)
-#    define QS_NODISCARD [[nodiscard]]
-#  else
-#    define QS_NODISCARD
-#  endif
+#if __has_cpp_attribute(nodiscard)
+#define QS_NODISCARD [[nodiscard]]
 #else
-#  define QS_NODISCARD
+#define QS_NODISCARD
+#endif
+#else
+#define QS_NODISCARD
 #endif
 
 
@@ -203,6 +181,13 @@ static_assert(QS_HAS_CPP(QS_MIN_CPP_VERSION), "QS library only is supported for 
 #define QS_INLINE_VAR inline
 #else
 #define QS_INLINE_VAR
+#endif
+
+
+#if defined(__cpp_lib_hardware_interference_size)
+#define QS_CACHELINE_SIZE std::hardware_destructive_interference_size
+#else
+#define QS_CACHELINE_SIZE 64
 #endif
 
 

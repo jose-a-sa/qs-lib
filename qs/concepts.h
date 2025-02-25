@@ -9,6 +9,25 @@
 
 QS_NAMESPACE_BEGIN
 
+template<class Bool, class T>
+struct switch_case;
+
+namespace detail
+{
+    template<class... Pairs>
+    struct switch_type_impl;
+
+    template<class Bool, class T, class... Rest>
+    struct switch_type_impl<switch_case<Bool, T>, Rest...> : 
+        std::conditional<Bool::value, T, typename switch_type_impl<Rest...>::type> {};
+    
+    template<class V>
+    struct switch_type_impl<V> { using type = V; };  
+}
+
+template<class... TArgs>
+using switch_t = typename detail::switch_type_impl<TArgs...>::type; 
+
 
 template<class Iterator, class IteratorTag, class Element = void>
 struct is_std_iterator : std::integral_constant<bool,

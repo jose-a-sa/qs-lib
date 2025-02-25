@@ -4,7 +4,6 @@
 #include <qs/config.h>
 
 #include <memory>
-#include <string>
 #include <type_traits>
 
 
@@ -20,8 +19,9 @@ QS_NAMESPACE_BEGIN
 
 namespace config
 {
-    QS_INLINE_VAR static QS_CONSTEXPR11 unsigned cpp_version  = (QS_CPP_VERSION); // Store the C++ version
-    QS_INLINE_VAR static QS_CONSTEXPR11 bool     has_noexcept = (QS_HAS_NO_EXCEPTIONS); // Check if noexcept is supported
+    QS_INLINE_VAR static QS_CONSTEXPR11 unsigned cpp_version = (QS_CPP_VERSION); // Store the C++ version
+    QS_INLINE_VAR static QS_CONSTEXPR11 bool   has_noexcept  = (QS_HAS_NO_EXCEPTIONS); // Check if noexcept is supported
+    QS_INLINE_VAR static QS_CONSTEXPR11 size_t cache_line_size = (QS_CACHELINE_SIZE); // Cache line size
 } // namespace config
 
 
@@ -74,13 +74,15 @@ inline constexpr bool is_unbounded_array_v = is_unbounded_array<T>::value; // C+
 
 
 template<class T>
-struct type_identity { using type = T; };
+struct type_identity
+{
+    using type = T;
+};
 template<class T>
 using type_identity_t = typename type_identity<T>::type; // C++20
 
 
 #endif
-
 
 
 //
@@ -90,12 +92,12 @@ using type_identity_t = typename type_identity<T>::type; // C++20
 //
 #if QS_HAS_CPP(17)
 
-using std::destroy_at;
 using std::destroy;
+using std::destroy_at;
 
 #elif QS_CONFIG(ADD_CPP17_MEMORY)
 
-template <class T, std::enable_if_t<!std::is_array<T>::value, int> = 0>
+template<class T, std::enable_if_t<!std::is_array<T>::value, int> = 0>
 QS_CONSTEXPR20 void destroy_at(T* location)
 {
     QS_ASSERT(location != nullptr, "null pointer location given to destroy_at");
@@ -113,10 +115,10 @@ QS_CONSTEXPR20 ForwardIterator destroy(ForwardIterator first, ForwardIterator la
 #endif
 
 
-template <class BidirectionalIterator>
+template<class BidirectionalIterator>
 QS_CONSTEXPR20 BidirectionalIterator reverse_destroy(BidirectionalIterator first, BidirectionalIterator last)
 {
-    while (last != first)
+    while(last != first)
         destroy_at(std::addressof(*(--last)));
     return last;
 }
@@ -148,13 +150,11 @@ template<class T, class... Args, class = decltype(::new(std::declval<void*>()) T
 QS_CONSTEXPR20 T* construct_at(T* location, Args&&... args)
 {
     QS_ASSERT(location != nullptr, "null pointer location given to construct_at");
-    return ::new (const_cast<void*>(static_cast<void const volatile*>(location))) T(std::forward<Args>(args)...);
+    return ::new(const_cast<void*>(static_cast<void const volatile*>(location))) T(std::forward<Args>(args)...);
     // return ::new(static_cast<void*>(location)) T(std::forward<Args>(args)...);
 }
 
 #endif
-
-
 
 
 QS_NAMESPACE_END

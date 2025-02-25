@@ -1,7 +1,6 @@
 #ifndef QS_INPLACE_VECTOR_H_
 #define QS_INPLACE_VECTOR_H_
 
-#include "qs/config.h"
 #include <algorithm>
 #include <cstddef>
 #include <iterator>
@@ -11,8 +10,6 @@
 #include <qs/concepts.h>
 #include <qs/exception_guard.h>
 #include <stdexcept>
-
-#include "fmt/ranges.h"
 
 QS_NAMESPACE_BEGIN
 
@@ -101,7 +98,7 @@ QS_NAMESPACE_BEGIN
 //         if(n > this->capacity())
 //             this->throw_bad_alloc();
 //     };
-//     QS_CONSTEXPR11 void shrink_to_fit() QS_NOEXCEPT { /* does nothing */ }; // only for api compatibility
+//     QS_CONSTEXPR11 void shrink_to_fit() QS_NOEXCEPT { /*does nothing*/ }; // only for api compatibility
 
 //     // Element access functions
 //     QS_CONSTEXPR11 reference       operator[](size_type n);
@@ -194,8 +191,7 @@ private:
 };
 
 
-template<class T, size_t Capacity, 
-        bool IsTrivial = (Capacity == 0) || std::is_trivially_copyable<T>::value>
+template<class T, size_t Capacity, bool IsTrivial = (Capacity == 0) || std::is_trivially_copyable<T>::value>
 struct inplace_vector_base;
 
 
@@ -212,31 +208,31 @@ struct inplace_vector_base<T, 0, true>
 
     QS_CONSTEXPR14 inplace_vector_base() = default;
 
-    QS_CONSTEXPR14 pointer       data_(size_type n = 0) QS_NOEXCEPT { return nullptr; }
-    QS_CONSTEXPR11 const_pointer data_(size_type n = 0) const QS_NOEXCEPT { return nullptr; }
+    QS_CONSTEXPR14 pointer       data_(size_type /*n*/ = 0) QS_NOEXCEPT { return nullptr; }
+    QS_CONSTEXPR11 const_pointer data_(size_type /*n*/ = 0) const QS_NOEXCEPT { return nullptr; }
     QS_CONSTEXPR11 size_type     size_() const QS_NOEXCEPT { return 0; }
 
     template<class... Args>
     QS_CONSTEXPR14 void construct_back_single_(Args&&...) QS_NOEXCEPT
     {}
 
-    QS_CONSTEXPR20 void construct_back_n_(size_type n) QS_NOEXCEPT {}
+    QS_CONSTEXPR20 void construct_back_n_(size_type /*n*/) QS_NOEXCEPT {}
 
-    QS_CONSTEXPR20 void construct_back_n_(size_type n, const_reference x) QS_NOEXCEPT {}
-
-    template<class Iterator, class Sentinel>
-    QS_CONSTEXPR20 void construct_back_range_(Iterator first, Sentinel last, size_type n) QS_NOEXCEPT
-    {}
-
-    QS_CONSTEXPR20 void move_range_(pointer from_start, pointer from_end, pointer to) QS_NOEXCEPT {}
-
-    QS_CONSTEXPR20 void assign_n_(size_type n, const_reference x) QS_NOEXCEPT {}
+    QS_CONSTEXPR20 void construct_back_n_(size_type /*n*/, const_reference /*x*/) QS_NOEXCEPT {}
 
     template<class Iterator, class Sentinel>
-    QS_CONSTEXPR20 void assign_range_(Iterator first, Sentinel last, size_type) QS_NOEXCEPT
+    QS_CONSTEXPR20 void construct_back_range_(Iterator /*first*/, Sentinel /*last*/, size_type /*n*/) QS_NOEXCEPT
     {}
 
-    QS_CONSTEXPR20 void destroy_back_(pointer new_end) QS_NOEXCEPT {}
+    QS_CONSTEXPR20 void move_range_(pointer /*from_start*/, pointer /*from_end*/, pointer /*to*/) QS_NOEXCEPT {}
+
+    QS_CONSTEXPR20 void assign_n_(size_type /*n*/, const_reference /*x*/) QS_NOEXCEPT {}
+
+    template<class Iterator, class Sentinel>
+    QS_CONSTEXPR20 void assign_range_(Iterator /*first*/, Sentinel /*last*/, size_type) QS_NOEXCEPT
+    {}
+
+    QS_CONSTEXPR20 void destroy_back_(pointer /*new_end*/) QS_NOEXCEPT {}
 
     QS_CONSTEXPR20 void clear_() QS_NOEXCEPT {}
 };
@@ -283,8 +279,8 @@ struct inplace_vector_base<T, Capacity, false>
     QS_CONSTEXPR20 inplace_vector_base(inplace_vector_base&& other) QS_NOEXCEPT : inplace_vector_base()
     {
         // auto guard = make_exception_guard([&]{ this->clear_(); });
-        this->construct_back_range_(
-            std::make_move_iterator(other.data_()), std::make_move_iterator(other.end_), other.size_());
+        this->construct_back_range_(std::make_move_iterator(other.data_()), std::make_move_iterator(other.end_),
+                                    other.size_());
         other.end_ = other.data_();
         // guard.complete();
     }
@@ -501,8 +497,8 @@ public:
     QS_CONSTEXPR11 explicit inplace_vector(size_type n)
         : inplace_vector()
     {
-        auto guard = make_exception_guard([&]{ base::clear_(); });
-        if(n > Capacity)
+        auto guard = make_exception_guard([&]{ clear(); });
+        if(n > capacity())
             this->throw_bad_alloc_();
         base::construct_back_n_(n);
         guard.complete();
@@ -511,38 +507,42 @@ public:
     QS_CONSTEXPR11 inplace_vector(size_type n, const_reference x)
         : inplace_vector()
     {
-        auto guard = make_exception_guard([&]{ base::clear_(); });
-        if(n > Capacity)
+        auto guard = make_exception_guard([&]{ clear(); });
+        if(n > capacity())
             this->throw_bad_alloc_();
         base::construct_back_n_(n, x);
         guard.complete();
     }
 
     // Constructor for initializing from a range of iterators
-    template<class InputIterator, 
-             typename std::enable_if<is_std_iterator_exact<InputIterator, std::input_iterator_tag, value_type>::value, int>::type = 0>
-    QS_CONSTEXPR11 inplace_vector(InputIterator first, InputIterator last) : inplace_vector()
+    template<class InputIterator,
+             typename std::enable_if<is_std_iterator_exact<InputIterator, std::input_iterator_tag, value_type>::value,
+                                     int>::type = 0>
+    QS_CONSTEXPR11 inplace_vector(InputIterator first, InputIterator last)
+        : inplace_vector()
     {
-        auto guard = make_exception_guard([&]{ base::clear_(); });
-        for (; first != last; ++first)
+        auto guard = make_exception_guard([&] { clear(); });
+        for(; first != last; ++first)
             emplace_back(*first);
         guard.complete();
     }
 
-    template<class ForwardIterator, 
-             typename std::enable_if<is_std_iterator<ForwardIterator, std::forward_iterator_tag, value_type>::value, int>::type = 0>
-    QS_CONSTEXPR11 inplace_vector(ForwardIterator first, ForwardIterator last) : inplace_vector()
+    template<class ForwardIterator,
+             typename std::enable_if<is_std_iterator<ForwardIterator, std::forward_iterator_tag, value_type>::value,
+                                     int>::type = 0>
+    QS_CONSTEXPR11 inplace_vector(ForwardIterator first, ForwardIterator last)
+        : inplace_vector()
     {
         // not calculate distance, meaning emplacing the elements one by one
-        auto const n = static_cast<size_type>(std::distance(first, last));
-        auto guard = make_exception_guard([&]{ base::clear_(); });
-        if(n > Capacity)
+        auto const n     = static_cast<size_type>(std::distance(first, last));
+        auto       guard = make_exception_guard([&] { clear(); });
+        if(n > capacity())
             this->throw_bad_alloc_();
         base::construct_back_range_(first, last, n);
         guard.complete();
     }
 
-    //initializer list constructor and assignment operator
+    // initializer list constructor and assignment operator
     QS_CONSTEXPR11 inplace_vector& operator=(std::initializer_list<value_type> il)
     {
         assign(il.begin(), il.end());
@@ -551,28 +551,30 @@ public:
 
     // Assign functions for various scenarios
 
-    template<class InputIterator, 
-             typename std::enable_if<is_std_iterator_exact<InputIterator, std::input_iterator_tag, value_type>::value, int>::type = 0>
+    template<class InputIterator,
+             typename std::enable_if<is_std_iterator_exact<InputIterator, std::input_iterator_tag, value_type>::value,
+                                     int>::type = 0>
     QS_CONSTEXPR11 void assign(InputIterator first, InputIterator last)
     {
         clear();
-        for (; first != last; ++first)
+        for(; first != last; ++first)
             emplace_back(*first);
     }
 
-    template<class ForwardIterator, 
-             typename std::enable_if<is_std_iterator<ForwardIterator, std::forward_iterator_tag, value_type>::value, int>::type = 0>
+    template<class ForwardIterator,
+             typename std::enable_if<is_std_iterator<ForwardIterator, std::forward_iterator_tag, value_type>::value,
+                                     int>::type = 0>
     QS_CONSTEXPR11 void assign(ForwardIterator first, ForwardIterator last)
     {
         auto const new_size = static_cast<size_type>(std::distance(first, last));
-        if(new_size <= Capacity) // better branch prediction on MSVC if this is first
+        if(new_size <= capacity()) // better branch prediction on MSVC if this is first
         {
             size_type const curr_size = size();
-            if (new_size > curr_size)
+            if(new_size > curr_size)
             {
                 std::copy_n(first, curr_size, base::data_());
                 base::construct_back_range_(std::next(first, curr_size), last, new_size - curr_size);
-            } 
+            }
             else
             {
                 pointer new_end = std::copy(first, last, base::data_());
@@ -585,11 +587,11 @@ public:
 
     QS_CONSTEXPR11 void assign(size_type n, const_reference x)
     {
-        if(n <= Capacity)
+        if(n <= capacity())
         {
             size_type const curr_size = size();
             std::fill_n(base::data_(), std::min(n, curr_size), x);
-            if (n > curr_size)
+            if(n > curr_size)
                 base::construct_back_n_(n - curr_size, x);
             else
                 base::destroy_back_(base::data_(n));
@@ -598,10 +600,7 @@ public:
             throw_length_error_();
     }
 
-    QS_CONSTEXPR11 void assign(std::initializer_list<value_type> il)
-    { 
-        assign(il.begin(), il.end());
-    };
+    QS_CONSTEXPR11 void assign(std::initializer_list<value_type> il) { assign(il.begin(), il.end()); };
 
     // Iterator functions
     QS_CONSTEXPR14 iterator       begin() QS_NOEXCEPT { return wrap_iter(base::data_()); };
@@ -619,7 +618,7 @@ public:
     QS_CONSTEXPR11 const_reverse_iterator crbegin() const QS_NOEXCEPT { return rbegin(); };
     QS_CONSTEXPR11 const_reverse_iterator crend() const QS_NOEXCEPT { return rend(); };
 
-    // Capacity-related functions
+    // capacity()-related functions
     QS_CONSTEXPR11 size_type size() const QS_NOEXCEPT { return base::size_(); };
     QS_CONSTEXPR11 size_type capacity() const QS_NOEXCEPT { return Capacity; };
     QS_CONSTEXPR11 size_type max_size() const QS_NOEXCEPT { return Capacity; };
@@ -628,11 +627,11 @@ public:
 
     QS_CONSTEXPR11 void reserve(size_type n) // only for api compatibility
     {
-        if(n > Capacity)
+        if(n > capacity())
             throw_bad_alloc_();
     };
 
-    QS_CONSTEXPR11 void shrink_to_fit() QS_NOEXCEPT { /* does nothing */ }; // only for api compatibility
+    QS_CONSTEXPR11 void shrink_to_fit() QS_NOEXCEPT { /*does nothing*/ }; // only for api compatibility
 
     // Element access functions
     QS_CONSTEXPR11 reference operator[](size_type n) QS_NOEXCEPT
@@ -710,8 +709,9 @@ public:
     QS_CONSTEXPR11 iterator insert(const_iterator position, value_type&& x);
     QS_CONSTEXPR11 iterator insert(const_iterator position, size_type n, value_type const& x);
 
-    template<class InputIterator, class = typename std::enable_if<is_std_iterator<
-                                      InputIterator, std::input_iterator_tag, value_type>::value>::type>
+    template<class InputIterator,
+             typename std::enable_if<is_std_iterator<InputIterator, std::input_iterator_tag, value_type>::value,
+                                     int>::type = 0>
     QS_CONSTEXPR11 iterator insert(const_iterator position, InputIterator first, InputIterator last);
 
     QS_CONSTEXPR11 iterator insert(const_iterator position, std::initializer_list<value_type> il);
@@ -719,23 +719,23 @@ public:
     QS_CONSTEXPR11 iterator erase(const_iterator position);
     QS_CONSTEXPR11 iterator erase(const_iterator first, const_iterator last);
 
-    QS_CONSTEXPR11 void clear() QS_NOEXCEPT { base::clear_(); } 
+    QS_CONSTEXPR11 void clear() QS_NOEXCEPT { base::clear_(); }
 
     QS_CONSTEXPR11 void resize(size_type new_size)
     {
         size_type const curr_size = size();
-        if (curr_size < new_size)
+        if(curr_size < new_size)
             this->append_(new_size - curr_size);
-        else if (curr_size > new_size)
+        else if(curr_size > new_size)
             base::destroy_back_(base::data_() + new_size);
     }
 
     QS_CONSTEXPR11 void resize(size_type new_size, const_reference x)
     {
         size_type const curr_size = size();
-        if (curr_size < new_size)
+        if(curr_size < new_size)
             this->append_(new_size - curr_size, x);
-        else if (curr_size > new_size)
+        else if(curr_size > new_size)
             base::destroy_back_(base::data_() + new_size);
     }
 
@@ -754,17 +754,17 @@ private:
 
     QS_CONSTEXPR11 void append_(size_type n)
     {
-        if (Capacity - size() >= n)
+        if(capacity() - size() >= n)
             base::construct_back_n_(n);
-        else 
+        else
             throw_bad_alloc_();
     }
 
     QS_CONSTEXPR11 void append_(size_type n, const_reference x)
     {
-        if (Capacity - size() >= n)
+        if(capacity() - size() >= n)
             base::construct_back_n_(n, x);
-        else 
+        else
             throw_bad_alloc_();
     }
 };
