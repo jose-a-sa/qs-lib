@@ -1,7 +1,7 @@
 #ifndef QS_CONTAINERS_FENWICKTREE_H_
 #define QS_CONTAINERS_FENWICKTREE_H_
 
-#include <qs/base.h>
+#include <qs/config.h>
 
 #include <vector>
 #include <stdexcept>
@@ -45,10 +45,10 @@ private:
     std::vector<value_type, allocator_type> tree_;
 
     template<class Index>
-    QS_CONSTEXPR11 Index increment_binary_index(Index) const QS_NOEXCEPT;
+    QS_CONSTEXPR11 Index increment_binary_index(Index) const noexcept;
 
     template<class Index>
-    QS_CONSTEXPR11 Index decrement_binary_index(Index) const QS_NOEXCEPT;
+    QS_CONSTEXPR11 Index decrement_binary_index(Index) const noexcept;
 
     QS_CONSTEXPR14 size_type recommend_size(size_type) const;
 
@@ -175,7 +175,7 @@ QS_CONSTEXPR14 void FenwickTree<T, Allocator>::build_prefix_tree(size_type first
 }
 
 
-#if QS_HAS(CTAD)
+#if defined(__cpp_deduction_guides)
 
 template<class InputIterator>
 FenwickTree(InputIterator, InputIterator) -> FenwickTree<typename std::iterator_traits<InputIterator>::value_type>;

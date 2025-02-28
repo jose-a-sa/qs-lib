@@ -1,22 +1,24 @@
 #ifndef QS_INPLACE_VECTOR_H_
 #define QS_INPLACE_VECTOR_H_
 
+#include <qs/concepts.h>
+#include <qs/config.h>
+#include <qs/exception_guard.h>
+#include <qs/memory.h>
+
 #include <algorithm>
 #include <cstddef>
 #include <iterator>
 #include <memory>
 #include <new>
-#include <qs/base.h>
-#include <qs/concepts.h>
-#include <qs/exception_guard.h>
 #include <stdexcept>
 
 QS_NAMESPACE_BEGIN
 
-// The class template `inplace_vector` is defined to store elements of type `T` with a fixed capacity `Capacity`.
-// Emphasis on making the class API compatible with the standard library `std::vector` as much as possible to ease
-// change between them. It follows closely the C++26 standard implementation,
-// https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2024/p0843r14.html
+// The class template `inplace_vector` is defined to store elements of type `T` with a fixed
+// capacity `Capacity`. Emphasis on making the class API compatible with the standard library
+// `std::vector` as much as possible to ease change between them. It follows closely the C++26
+// standard implementation, https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2024/p0843r14.html
 // template<typename T, std::size_t Capacity>
 // class inplace_vector
 // {
@@ -49,7 +51,7 @@ QS_NAMESPACE_BEGIN
 
 //     // Copy and move constructors
 //     QS_CONSTEXPR11 inplace_vector(inplace_vector const& other);
-//     QS_CONSTEXPR11 inplace_vector(inplace_vector&& other) QS_NOEXCEPT;
+//     QS_CONSTEXPR11 inplace_vector(inplace_vector&& other) noexcept;
 
 //     // Initializer list constructor
 //     QS_CONSTEXPR11 inplace_vector(std::initializer_list<value_type> il);
@@ -59,7 +61,7 @@ QS_NAMESPACE_BEGIN
 
 //     // Assignment operators
 //     QS_CONSTEXPR11 inplace_vector& operator=(inplace_vector const& other);
-//     QS_CONSTEXPR11 inplace_vector& operator=(inplace_vector&& other) QS_NOEXCEPT;
+//     QS_CONSTEXPR11 inplace_vector& operator=(inplace_vector&& other) noexcept;
 //     QS_CONSTEXPR11 inplace_vector& operator=(std::initializer_list<value_type> il);
 
 //     // Assign functions for various scenarios
@@ -72,33 +74,35 @@ QS_NAMESPACE_BEGIN
 //     QS_CONSTEXPR11 void assign(std::initializer_list<value_type> il);
 
 //     // Iterator functions
-//     QS_CONSTEXPR11 iterator       begin() QS_NOEXCEPT;
-//     QS_CONSTEXPR11 const_iterator begin() const QS_NOEXCEPT;
-//     QS_CONSTEXPR11 iterator       end() QS_NOEXCEPT;
-//     QS_CONSTEXPR11 const_iterator end() const QS_NOEXCEPT;
+//     QS_CONSTEXPR11 iterator       begin() noexcept;
+//     QS_CONSTEXPR11 const_iterator begin() const noexcept;
+//     QS_CONSTEXPR11 iterator       end() noexcept;
+//     QS_CONSTEXPR11 const_iterator end() const noexcept;
 
-//     QS_CONSTEXPR11 reverse_iterator       rbegin() QS_NOEXCEPT { return reverse_iterator(end()); };
-//     QS_CONSTEXPR11 const_reverse_iterator rbegin() const QS_NOEXCEPT { return const_reverse_iterator(end()); };
-//     QS_CONSTEXPR11 reverse_iterator       rend() QS_NOEXCEPT { return reverse_iterator(begin()); };
-//     QS_CONSTEXPR11 const_reverse_iterator rend() const QS_NOEXCEPT { return const_reverse_iterator(begin()); };
+//     QS_CONSTEXPR11 reverse_iterator       rbegin() noexcept { return reverse_iterator(end());
+//     }; QS_CONSTEXPR11 const_reverse_iterator rbegin() const noexcept { return
+//     const_reverse_iterator(end()); }; QS_CONSTEXPR11 reverse_iterator       rend() noexcept {
+//     return reverse_iterator(begin()); }; QS_CONSTEXPR11 const_reverse_iterator rend() const
+//     noexcept { return const_reverse_iterator(begin()); };
 
-//     QS_CONSTEXPR11 const_iterator         cbegin() const QS_NOEXCEPT { return begin(); };
-//     QS_CONSTEXPR11 const_iterator         cend() const QS_NOEXCEPT { return end(); };
-//     QS_CONSTEXPR11 const_reverse_iterator crbegin() const QS_NOEXCEPT { return rbegin(); };
-//     QS_CONSTEXPR11 const_reverse_iterator crend() const QS_NOEXCEPT { return rend(); };
+//     QS_CONSTEXPR11 const_iterator         cbegin() const noexcept { return begin(); };
+//     QS_CONSTEXPR11 const_iterator         cend() const noexcept { return end(); };
+//     QS_CONSTEXPR11 const_reverse_iterator crbegin() const noexcept { return rbegin(); };
+//     QS_CONSTEXPR11 const_reverse_iterator crend() const noexcept { return rend(); };
 
 //     // Capacity-related functions
-//     QS_CONSTEXPR11 size_type size() const QS_NOEXCEPT;
-//     QS_CONSTEXPR11 size_type capacity() const QS_NOEXCEPT { return Capacity; };
-//     QS_CONSTEXPR11 size_type max_size() const QS_NOEXCEPT { return Capacity; };
+//     QS_CONSTEXPR11 size_type size() const noexcept;
+//     QS_CONSTEXPR11 size_type capacity() const noexcept { return Capacity; };
+//     QS_CONSTEXPR11 size_type max_size() const noexcept { return Capacity; };
 
-//     QS_CONSTEXPR11 bool empty() const QS_NOEXCEPT { return size() == 0; };
+//     QS_CONSTEXPR11 bool empty() const noexcept { return size() == 0; };
 //     QS_CONSTEXPR11 void reserve(size_type n) /*const*/ // only for api compatibility
 //     {
 //         if(n > this->capacity())
 //             this->throw_bad_alloc();
 //     };
-//     QS_CONSTEXPR11 void shrink_to_fit() QS_NOEXCEPT { /*does nothing*/ }; // only for api compatibility
+//     QS_CONSTEXPR11 void shrink_to_fit() noexcept { /*does nothing*/ }; // only for api
+//     compatibility
 
 //     // Element access functions
 //     QS_CONSTEXPR11 reference       operator[](size_type n);
@@ -111,8 +115,8 @@ QS_NAMESPACE_BEGIN
 //     QS_CONSTEXPR11 reference       back();
 //     QS_CONSTEXPR11 const_reference back() const;
 
-//     QS_CONSTEXPR11 pointer       data() QS_NOEXCEPT;
-//     QS_CONSTEXPR11 const_pointer data() const QS_NOEXCEPT;
+//     QS_CONSTEXPR11 pointer       data() noexcept;
+//     QS_CONSTEXPR11 const_pointer data() const noexcept;
 
 //     // Modifiers
 //     QS_CONSTEXPR11 void push_back(value_type const& x);
@@ -125,9 +129,8 @@ QS_NAMESPACE_BEGIN
 //     template<class... Args>
 //     QS_CONSTEXPR17 reference emplace_back(Args&&... args);
 
-//     // new in inplace_vector, does not throw, instead returns a pointer to the inserted element or nullptr
-//     template<class... Args>
-//     QS_CONSTEXPR17 pointer emplace_back(Args&&... args);
+//     // new in inplace_vector, does not throw, instead returns a pointer to the inserted element
+//     or nullptr template<class... Args> QS_CONSTEXPR17 pointer emplace_back(Args&&... args);
 
 //     QS_CONSTEXPR11 void pop_back();
 
@@ -139,23 +142,27 @@ QS_NAMESPACE_BEGIN
 //     QS_CONSTEXPR11 iterator insert(const_iterator position, size_type n, value_type const& x);
 
 //     template<class InputIterator,
-//              class = std::enable_if_t<is_std_iterator<InputIterator, std::input_iterator_tag, value_type>::value>>
-//     QS_CONSTEXPR11 iterator insert(const_iterator position, InputIterator first, InputIterator last);
+//              class = std::enable_if_t<is_std_iterator<InputIterator, std::input_iterator_tag,
+//              value_type>::value>>
+//     QS_CONSTEXPR11 iterator insert(const_iterator position, InputIterator first, InputIterator
+//     last);
 
-//     QS_CONSTEXPR11 iterator insert(const_iterator position, std::initializer_list<value_type> il);
+//     QS_CONSTEXPR11 iterator insert(const_iterator position, std::initializer_list<value_type>
+//     il);
 
 //     QS_CONSTEXPR11 iterator erase(const_iterator position);
 //     QS_CONSTEXPR11 iterator erase(const_iterator first, const_iterator last);
 
-//     QS_CONSTEXPR11 void clear() QS_NOEXCEPT;
+//     QS_CONSTEXPR11 void clear() noexcept;
 
 //     QS_CONSTEXPR11 void resize(size_type size);
 //     QS_CONSTEXPR11 void resize(size_type size, value_type const& x);
 
-//     QS_CONSTEXPR17 void swap(inplace_vector& other) QS_NOEXCEPT; // C++17x
+//     QS_CONSTEXPR17 void swap(inplace_vector& other) noexcept; // C++17x
 
 
-//     // [[noreturn]] void throw_out_of_range() const { throw std::out_of_range("inplace_vector"); }
+//     // [[noreturn]] void throw_out_of_range() const { throw std::out_of_range("inplace_vector");
+//     }
 //     // [[noreturn]] void throw_bad_alloc() const { throw std::bad_alloc(); }
 // };
 
@@ -168,20 +175,25 @@ struct construction_transaction
     using const_pointer = typename std::add_const<pointer>::type;
     using size_type     = size_t;
 
-    QS_CONSTEXPR14 construction_transaction(pointer& end, size_type n) QS_NOEXCEPT : new_end(end + n),
-                                                                                     end_(end),
-                                                                                     curr_pos_(end)
+    QS_CONSTEXPR14 construction_transaction(pointer& end, size_type n) noexcept
+        : new_end(end + n),
+          end_(end),
+          curr_pos_(end)
     {}
 
-    QS_CONSTEXPR14 construction_transaction(pointer& end) QS_NOEXCEPT : new_end(nullptr), end_(end), curr_pos_(end) {}
+    QS_CONSTEXPR14 construction_transaction(pointer& end) noexcept
+        : new_end(nullptr),
+          end_(end),
+          curr_pos_(end)
+    {}
 
     construction_transaction(construction_transaction const&)            = delete;
     construction_transaction& operator=(construction_transaction const&) = delete;
 
-    QS_CONSTEXPR20 ~construction_transaction() QS_NOEXCEPT { end_ = curr_pos_; }
+    QS_CONSTEXPR20 ~construction_transaction() noexcept { end_ = curr_pos_; }
 
-    QS_CONSTEXPR14 pointer commit(size_type n = 1) QS_NOEXCEPT { return curr_pos_ += n; }
-    QS_CONSTEXPR14 pointer commit(pointer new_pos) QS_NOEXCEPT { return curr_pos_ = new_pos; }
+    QS_CONSTEXPR14 pointer commit(size_type n = 1) noexcept { return curr_pos_ += n; }
+    QS_CONSTEXPR14 pointer commit(pointer new_pos) noexcept { return curr_pos_ = new_pos; }
 
     const_pointer const new_end;
 
@@ -208,33 +220,33 @@ struct inplace_vector_base<T, 0, true>
 
     QS_CONSTEXPR14 inplace_vector_base() = default;
 
-    QS_CONSTEXPR14 pointer       data_(size_type /*n*/ = 0) QS_NOEXCEPT { return nullptr; }
-    QS_CONSTEXPR11 const_pointer data_(size_type /*n*/ = 0) const QS_NOEXCEPT { return nullptr; }
-    QS_CONSTEXPR11 size_type     size_() const QS_NOEXCEPT { return 0; }
+    QS_CONSTEXPR14 pointer       data_(size_type /*n*/ = 0) noexcept { return nullptr; }
+    QS_CONSTEXPR11 const_pointer data_(size_type /*n*/ = 0) const noexcept { return nullptr; }
+    QS_CONSTEXPR11 size_type     size_() const noexcept { return 0; }
 
     template<class... Args>
-    QS_CONSTEXPR14 void construct_back_single_(Args&&...) QS_NOEXCEPT
+    QS_CONSTEXPR14 void construct_back_single_(Args&&...) noexcept
     {}
 
-    QS_CONSTEXPR20 void construct_back_n_(size_type /*n*/) QS_NOEXCEPT {}
+    QS_CONSTEXPR20 void construct_back_n_(size_type /*n*/) noexcept {}
 
-    QS_CONSTEXPR20 void construct_back_n_(size_type /*n*/, const_reference /*x*/) QS_NOEXCEPT {}
+    QS_CONSTEXPR20 void construct_back_n_(size_type /*n*/, const_reference /*x*/) noexcept {}
 
     template<class Iterator, class Sentinel>
-    QS_CONSTEXPR20 void construct_back_range_(Iterator /*first*/, Sentinel /*last*/, size_type /*n*/) QS_NOEXCEPT
+    QS_CONSTEXPR20 void construct_back_range_(Iterator /*first*/, Sentinel /*last*/, size_type /*n*/) noexcept
     {}
 
-    QS_CONSTEXPR20 void move_range_(pointer /*from_start*/, pointer /*from_end*/, pointer /*to*/) QS_NOEXCEPT {}
+    QS_CONSTEXPR20 void move_range_(pointer /*from_start*/, pointer /*from_end*/, pointer /*to*/) noexcept {}
 
-    QS_CONSTEXPR20 void assign_n_(size_type /*n*/, const_reference /*x*/) QS_NOEXCEPT {}
+    QS_CONSTEXPR20 void assign_n_(size_type /*n*/, const_reference /*x*/) noexcept {}
 
     template<class Iterator, class Sentinel>
-    QS_CONSTEXPR20 void assign_range_(Iterator /*first*/, Sentinel /*last*/, size_type) QS_NOEXCEPT
+    QS_CONSTEXPR20 void assign_range_(Iterator /*first*/, Sentinel /*last*/, size_type) noexcept
     {}
 
-    QS_CONSTEXPR20 void destroy_back_(pointer /*new_end*/) QS_NOEXCEPT {}
+    QS_CONSTEXPR20 void destroy_back_(pointer /*new_end*/) noexcept {}
 
-    QS_CONSTEXPR20 void clear_() QS_NOEXCEPT {}
+    QS_CONSTEXPR20 void clear_() noexcept {}
 };
 
 
@@ -252,7 +264,8 @@ struct inplace_vector_base<T, Capacity, false>
     using size_type       = size_t;
     using difference_type = ptrdiff_t;
 
-    QS_CONSTEXPR14 inplace_vector_base() QS_NOEXCEPT : end_(data_()) {};
+    QS_CONSTEXPR14 inplace_vector_base() noexcept
+        : end_(data_()) {};
 
     // Copy constructor
     QS_CONSTEXPR20 inplace_vector_base(inplace_vector_base const& other)
@@ -264,7 +277,7 @@ struct inplace_vector_base<T, Capacity, false>
     }
 
     // Copy assignment operator
-    QS_CONSTEXPR20 inplace_vector_base& operator=(inplace_vector_base const& rhs) QS_NOEXCEPT
+    QS_CONSTEXPR20 inplace_vector_base& operator=(inplace_vector_base const& rhs) noexcept
     {
         if(this != std::addressof(rhs))
         {
@@ -276,22 +289,24 @@ struct inplace_vector_base<T, Capacity, false>
     }
 
     // Move constructor
-    QS_CONSTEXPR20 inplace_vector_base(inplace_vector_base&& other) QS_NOEXCEPT : inplace_vector_base()
+    QS_CONSTEXPR20 inplace_vector_base(inplace_vector_base&& other) noexcept
+        : inplace_vector_base()
     {
         // auto guard = make_exception_guard([&]{ this->clear_(); });
-        this->construct_back_range_(std::make_move_iterator(other.data_()), std::make_move_iterator(other.end_),
-                                    other.size_());
+        this->construct_back_range_(std::make_move_iterator(other.data_()),
+                                    std::make_move_iterator(other.end_), other.size_());
         other.end_ = other.data_();
         // guard.complete();
     }
 
     // Move assignment operator
-    QS_CONSTEXPR20 inplace_vector_base& operator=(inplace_vector_base&& rhs) QS_NOEXCEPT
+    QS_CONSTEXPR20 inplace_vector_base& operator=(inplace_vector_base&& rhs) noexcept
     {
         if(this != std::addressof(rhs))
         {
             auto guard = make_exception_guard([&] { this->clear_(); });
-            this->assign_range_(std::make_move_iterator(rhs.data_()), std::make_move_iterator(rhs.end_), rhs.size_());
+            this->assign_range_(std::make_move_iterator(rhs.data_()), std::make_move_iterator(rhs.end_),
+                                rhs.size_());
             rhs.end_ = rhs.data_();
             guard.complete();
         }
@@ -299,12 +314,12 @@ struct inplace_vector_base<T, Capacity, false>
     }
 
     // Destructor
-    QS_CONSTEXPR20 ~inplace_vector_base() QS_NOEXCEPT { this->clear_(); }
+    QS_CONSTEXPR20 ~inplace_vector_base() noexcept { this->clear_(); }
 
 
-    QS_CONSTEXPR14 pointer       data_(size_type n = 0) QS_NOEXCEPT { return this->buffer_->recast() + n; }
-    QS_CONSTEXPR11 const_pointer data_(size_type n = 0) const QS_NOEXCEPT { return this->buffer_->recast() + n; }
-    QS_CONSTEXPR11 size_type     size_() const QS_NOEXCEPT { return this->end_ - this->data_(); }
+    QS_CONSTEXPR14 pointer       data_(size_type n = 0) noexcept { return this->buffer_->recast() + n; }
+    QS_CONSTEXPR11 const_pointer data_(size_type n = 0) const noexcept { return this->buffer_->recast() + n; }
+    QS_CONSTEXPR11 size_type     size_() const noexcept { return this->end_ - this->data_(); }
 
 
     template<class... Args>
@@ -381,21 +396,25 @@ struct inplace_vector_base<T, Capacity, false>
         std::move_backward(from_start, from_mid, old_last);
     }
 
-    QS_CONSTEXPR20 void destroy_back_(pointer new_end) QS_NOEXCEPT
+    QS_CONSTEXPR20 void destroy_back_(pointer new_end) noexcept
     {
         reverse_destroy(new_end, this->end_);
         this->end_ = new_end;
     }
 
-    QS_CONSTEXPR20 void clear_() QS_NOEXCEPT { this->destroy_back_(this->data_()); }
+    QS_CONSTEXPR20 void clear_() noexcept { this->destroy_back_(this->data_()); }
 
     struct alignas(value_type) inner_element_t
     {
         byte                         elem_[sizeof(value_type)];
-        QS_CONSTEXPR14 pointer       recast() { return QS_LAUNDER(reinterpret_cast<pointer>(elem_)); }
-        QS_CONSTEXPR11 const_pointer recast() const { return QS_LAUNDER(reinterpret_cast<const_pointer>(elem_)); }
+        QS_CONSTEXPR14 pointer       recast() { return launder(reinterpret_cast<pointer>(elem_)); }
+        QS_CONSTEXPR14 const_pointer recast() const
+        {
+            return launder(reinterpret_cast<const_pointer>(elem_));
+        }
     };
-    static_assert(sizeof(inner_element_t) == sizeof(value_type) && alignof(inner_element_t) == alignof(value_type),
+    static_assert(sizeof(inner_element_t) == sizeof(value_type) &&
+                      alignof(inner_element_t) == alignof(value_type),
                   "inner_element_t is not the same size/alignment as value_type");
 
     inner_element_t buffer_[Capacity];
@@ -420,11 +439,11 @@ struct inplace_vector_base<T, Capacity, true>
     QS_CONSTEXPR14 inplace_vector_base()
         : end_(data_()) {};
 
-    QS_CONSTEXPR20 ~inplace_vector_base() QS_NOEXCEPT { clear_(); }
+    QS_CONSTEXPR20 ~inplace_vector_base() noexcept { clear_(); }
 
-    QS_CONSTEXPR14 pointer       data_(size_type n = 0) QS_NOEXCEPT { return buffer_ + n; }
-    QS_CONSTEXPR11 const_pointer data_(size_type n = 0) const QS_NOEXCEPT { return buffer_ + n; }
-    QS_CONSTEXPR11 size_type     size_() const QS_NOEXCEPT { return end_ - data_(); }
+    QS_CONSTEXPR14 pointer       data_(size_type n = 0) noexcept { return buffer_ + n; }
+    QS_CONSTEXPR11 const_pointer data_(size_type n = 0) const noexcept { return buffer_ + n; }
+    QS_CONSTEXPR11 size_type     size_() const noexcept { return end_ - data_(); }
 
 
     template<class... Args>
@@ -461,9 +480,9 @@ struct inplace_vector_base<T, Capacity, true>
         this->end_ = std::copy(first, last, this->end_);
     }
 
-    QS_CONSTEXPR20 void destroy_back_(pointer new_end) QS_NOEXCEPT { this->end_ = new_end; }
+    QS_CONSTEXPR20 void destroy_back_(pointer new_end) noexcept { this->end_ = new_end; }
 
-    QS_CONSTEXPR20 void clear_() QS_NOEXCEPT { destroy_back_(data_()); }
+    QS_CONSTEXPR20 void clear_() noexcept { destroy_back_(data_()); }
 
     using inner_element_t = value_type;
     inner_element_t buffer_[Capacity];
@@ -497,48 +516,57 @@ public:
     QS_CONSTEXPR11 explicit inplace_vector(size_type n)
         : inplace_vector()
     {
-        auto guard = make_exception_guard([&]{ clear(); });
+        auto guard = make_exception_guard([&] { clear(); });
+
         if(n > capacity())
             this->throw_bad_alloc_();
         base::construct_back_n_(n);
+
         guard.complete();
     };
 
     QS_CONSTEXPR11 inplace_vector(size_type n, const_reference x)
         : inplace_vector()
     {
-        auto guard = make_exception_guard([&]{ clear(); });
+        auto guard = make_exception_guard([&] { clear(); });
+
         if(n > capacity())
             this->throw_bad_alloc_();
         base::construct_back_n_(n, x);
+
         guard.complete();
     }
 
     // Constructor for initializing from a range of iterators
-    template<class InputIterator,
-             typename std::enable_if<is_std_iterator_exact<InputIterator, std::input_iterator_tag, value_type>::value,
-                                     int>::type = 0>
+    template<
+        class InputIterator,
+        typename std::enable_if<
+            is_std_iterator_exact<InputIterator, std::input_iterator_tag, value_type>::value, int>::type = 0>
     QS_CONSTEXPR11 inplace_vector(InputIterator first, InputIterator last)
         : inplace_vector()
     {
         auto guard = make_exception_guard([&] { clear(); });
+
         for(; first != last; ++first)
             emplace_back(*first);
+
         guard.complete();
     }
 
-    template<class ForwardIterator,
-             typename std::enable_if<is_std_iterator<ForwardIterator, std::forward_iterator_tag, value_type>::value,
-                                     int>::type = 0>
+    template<
+        class ForwardIterator,
+        typename std::enable_if<
+            is_std_iterator<ForwardIterator, std::forward_iterator_tag, value_type>::value, int>::type = 0>
     QS_CONSTEXPR11 inplace_vector(ForwardIterator first, ForwardIterator last)
         : inplace_vector()
     {
-        // not calculate distance, meaning emplacing the elements one by one
-        auto const n     = static_cast<size_type>(std::distance(first, last));
-        auto       guard = make_exception_guard([&] { clear(); });
+        auto guard = make_exception_guard([&] { clear(); });
+
+        auto const n = static_cast<size_type>(std::distance(first, last));
         if(n > capacity())
             this->throw_bad_alloc_();
         base::construct_back_range_(first, last, n);
+
         guard.complete();
     }
 
@@ -551,9 +579,10 @@ public:
 
     // Assign functions for various scenarios
 
-    template<class InputIterator,
-             typename std::enable_if<is_std_iterator_exact<InputIterator, std::input_iterator_tag, value_type>::value,
-                                     int>::type = 0>
+    template<
+        class InputIterator,
+        typename std::enable_if<
+            is_std_iterator_exact<InputIterator, std::input_iterator_tag, value_type>::value, int>::type = 0>
     QS_CONSTEXPR11 void assign(InputIterator first, InputIterator last)
     {
         clear();
@@ -561,9 +590,10 @@ public:
             emplace_back(*first);
     }
 
-    template<class ForwardIterator,
-             typename std::enable_if<is_std_iterator<ForwardIterator, std::forward_iterator_tag, value_type>::value,
-                                     int>::type = 0>
+    template<
+        class ForwardIterator,
+        typename std::enable_if<
+            is_std_iterator<ForwardIterator, std::forward_iterator_tag, value_type>::value, int>::type = 0>
     QS_CONSTEXPR11 void assign(ForwardIterator first, ForwardIterator last)
     {
         auto const new_size = static_cast<size_type>(std::distance(first, last));
@@ -600,86 +630,74 @@ public:
             throw_length_error_();
     }
 
-    QS_CONSTEXPR11 void assign(std::initializer_list<value_type> il) { assign(il.begin(), il.end()); };
+    QS_CONSTEXPR17 void assign(std::initializer_list<value_type> il) { assign(il.begin(), il.end()); };
 
     // Iterator functions
-    QS_CONSTEXPR14 iterator       begin() QS_NOEXCEPT { return wrap_iter(base::data_()); };
-    QS_CONSTEXPR11 const_iterator begin() const QS_NOEXCEPT { return wrap_iter(base::data_()); };
-    QS_CONSTEXPR14 iterator       end() QS_NOEXCEPT { return wrap_iter(base::end_); };
-    QS_CONSTEXPR11 const_iterator end() const QS_NOEXCEPT { return wrap_iter(base::end_); };
+    QS_CONSTEXPR14 iterator       begin() noexcept { return wrap_iter(base::data_()); };
+    QS_CONSTEXPR14 const_iterator begin() const noexcept { return wrap_iter(base::data_()); };
+    QS_CONSTEXPR14 iterator       end() noexcept { return wrap_iter(base::end_); };
+    QS_CONSTEXPR14 const_iterator end() const noexcept { return wrap_iter(base::end_); };
 
-    QS_CONSTEXPR14 reverse_iterator       rbegin() QS_NOEXCEPT { return reverse_iterator(end()); };
-    QS_CONSTEXPR11 const_reverse_iterator rbegin() const QS_NOEXCEPT { return const_reverse_iterator(end()); };
-    QS_CONSTEXPR14 reverse_iterator       rend() QS_NOEXCEPT { return reverse_iterator(begin()); };
-    QS_CONSTEXPR11 const_reverse_iterator rend() const QS_NOEXCEPT { return const_reverse_iterator(begin()); };
+    QS_CONSTEXPR14 reverse_iterator       rbegin() noexcept { return reverse_iterator(end()); };
+    QS_CONSTEXPR14 const_reverse_iterator rbegin() const noexcept { return const_reverse_iterator(end()); };
+    QS_CONSTEXPR14 reverse_iterator       rend() noexcept { return reverse_iterator(begin()); };
+    QS_CONSTEXPR14 const_reverse_iterator rend() const noexcept { return const_reverse_iterator(begin()); };
 
-    QS_CONSTEXPR11 const_iterator         cbegin() const QS_NOEXCEPT { return begin(); };
-    QS_CONSTEXPR11 const_iterator         cend() const QS_NOEXCEPT { return end(); };
-    QS_CONSTEXPR11 const_reverse_iterator crbegin() const QS_NOEXCEPT { return rbegin(); };
-    QS_CONSTEXPR11 const_reverse_iterator crend() const QS_NOEXCEPT { return rend(); };
+    QS_CONSTEXPR14 const_iterator         cbegin() const noexcept { return begin(); };
+    QS_CONSTEXPR14 const_iterator         cend() const noexcept { return end(); };
+    QS_CONSTEXPR14 const_reverse_iterator crbegin() const noexcept { return rbegin(); };
+    QS_CONSTEXPR14 const_reverse_iterator crend() const noexcept { return rend(); };
 
-    // capacity()-related functions
-    QS_CONSTEXPR11 size_type size() const QS_NOEXCEPT { return base::size_(); };
-    QS_CONSTEXPR11 size_type capacity() const QS_NOEXCEPT { return Capacity; };
-    QS_CONSTEXPR11 size_type max_size() const QS_NOEXCEPT { return Capacity; };
+    // capacity()/size() related functions
+    QS_CONSTEXPR11 size_type size() const noexcept { return base::size_(); };
+    QS_CONSTEXPR11 size_type capacity() const noexcept { return Capacity; };
+    QS_CONSTEXPR11 size_type max_size() const noexcept { return Capacity; };
+    QS_CONSTEXPR11 bool      empty() const noexcept { return size() == 0; };
 
-    QS_CONSTEXPR11 bool empty() const QS_NOEXCEPT { return size() == 0; };
-
-    QS_CONSTEXPR11 void reserve(size_type n) // only for api compatibility
+    QS_CONSTEXPR17 void reserve(size_type n) // only for api compatibility
     {
         if(n > capacity())
             throw_bad_alloc_();
     };
-
-    QS_CONSTEXPR11 void shrink_to_fit() QS_NOEXCEPT { /*does nothing*/ }; // only for api compatibility
+    QS_CONSTEXPR17 void shrink_to_fit() noexcept { /*does nothing*/ }; // only for api compatibility
 
     // Element access functions
-    QS_CONSTEXPR11 reference operator[](size_type n) QS_NOEXCEPT
+    QS_CONSTEXPR14 reference operator[](size_type n) noexcept
     {
-        QS_ASSERT(n < size(), "inplace_vector[] index out of bounds");
-        return *base::data_(n);
+        return QS_ASSERT(n < size(), "inplace_vector[] index out of bounds"), *base::data_(n);
     };
-    QS_CONSTEXPR11 const_reference operator[](size_type n) const QS_NOEXCEPT
+    QS_CONSTEXPR14 const_reference operator[](size_type n) const noexcept
     {
-        QS_ASSERT(n < size(), "inplace_vector[] index out of bounds");
-        return *base::data_(n);
+        return QS_ASSERT(n < size(), "inplace_vector[] index out of bounds"), *base::data_(n);
     };
-    QS_CONSTEXPR11 reference at(size_type n)
+    QS_CONSTEXPR14 reference at(size_type n)
     {
-        if(n >= size())
-            throw_bad_alloc_();
-        return *base::data_(n);
+        return (n >= size()) ? (throw_bad_alloc_(), *base::data_(0)) : *base::data_(n);
     };
-    QS_CONSTEXPR11 const_reference at(size_type n) const
+    QS_CONSTEXPR14 const_reference at(size_type n) const
     {
-        if(n >= size())
-            throw_bad_alloc_();
-        return *base::data_(n);
+        return (n >= size()) ? (throw_bad_alloc_(), *base::data_(0)) : *base::data_(n);
     };
 
-    QS_CONSTEXPR11 reference front() QS_NOEXCEPT
+    QS_CONSTEXPR14 reference front() noexcept
     {
-        QS_ASSERT(!empty(), "front() called on an empty inplace_vector");
-        return *base::data_();
+        return QS_ASSERT(!empty(), "front() called on an empty inplace_vector"), *data();
     };
-    QS_CONSTEXPR11 const_reference front() const QS_NOEXCEPT
+    QS_CONSTEXPR14 const_reference front() const noexcept
     {
-        QS_ASSERT(!empty(), "front() called on an empty inplace_vector");
-        return *base::data_();
+        return QS_ASSERT(!empty(), "front() called on an empty inplace_vector"), *data();
     };
-    QS_CONSTEXPR11 reference back() QS_NOEXCEPT
+    QS_CONSTEXPR14 reference back() noexcept
     {
-        QS_ASSERT(!empty(), "back() called on an empty inplace_vector");
-        return *(base::end_ - 1);
+        return QS_ASSERT(!empty(), "back() called on an empty inplace_vector"), *(end() - 1);
     };
-    QS_CONSTEXPR11 const_reference back() const QS_NOEXCEPT
+    QS_CONSTEXPR14 const_reference back() const noexcept
     {
-        QS_ASSERT(!empty(), "back() called on an empty inplace_vector");
-        return *(base::end_ - 1);
+        return QS_ASSERT(!empty(), "back() called on an empty inplace_vector"), *(end() - 1);
     };
 
-    QS_CONSTEXPR11 pointer       data() QS_NOEXCEPT { return base::data_(); };
-    QS_CONSTEXPR11 const_pointer data() const QS_NOEXCEPT { return base::data_(); };
+    QS_CONSTEXPR14 pointer       data() noexcept { return base::data_(); };
+    QS_CONSTEXPR14 const_pointer data() const noexcept { return base::data_(); };
 
     // Modifiers
     QS_CONSTEXPR11 void push_back(value_type const& x);
@@ -689,12 +707,18 @@ public:
     QS_CONSTEXPR11 void try_push_back(value_type const& x);
     QS_CONSTEXPR11 void try_push_back(value_type&& x);
 
+    QS_CONSTEXPR11 void unchecked_push_back(value_type const& x);
+    QS_CONSTEXPR11 void unchecked_push_back(value_type&& x);
+
     template<class... Args>
     QS_CONSTEXPR17 reference emplace_back(Args&&... args);
 
-    // new in inplace_vector, does not throw, instead returns a pointer to the inserted element or nullptr
+    // new in inplace_vector, does not throw, instead returns a pointer to the inserted element
     template<class... Args>
     QS_CONSTEXPR17 pointer try_emplace_back(Args&&... args);
+
+    template<class... Args>
+    QS_CONSTEXPR17 pointer unchecked_emplace_back(Args&&... args);
 
     QS_CONSTEXPR11 void pop_back()
     {
@@ -710,8 +734,8 @@ public:
     QS_CONSTEXPR11 iterator insert(const_iterator position, size_type n, value_type const& x);
 
     template<class InputIterator,
-             typename std::enable_if<is_std_iterator<InputIterator, std::input_iterator_tag, value_type>::value,
-                                     int>::type = 0>
+             typename std::enable_if<
+                 is_std_iterator<InputIterator, std::input_iterator_tag, value_type>::value, int>::type = 0>
     QS_CONSTEXPR11 iterator insert(const_iterator position, InputIterator first, InputIterator last);
 
     QS_CONSTEXPR11 iterator insert(const_iterator position, std::initializer_list<value_type> il);
@@ -719,7 +743,7 @@ public:
     QS_CONSTEXPR11 iterator erase(const_iterator position);
     QS_CONSTEXPR11 iterator erase(const_iterator first, const_iterator last);
 
-    QS_CONSTEXPR11 void clear() QS_NOEXCEPT { base::clear_(); }
+    QS_CONSTEXPR11 void clear() noexcept { base::clear_(); }
 
     QS_CONSTEXPR11 void resize(size_type new_size)
     {
@@ -739,14 +763,14 @@ public:
             base::destroy_back_(base::data_() + new_size);
     }
 
-    QS_CONSTEXPR17 void swap(inplace_vector& other) QS_NOEXCEPT; // C++17x
+    QS_CONSTEXPR17 void swap(inplace_vector& other) noexcept; // C++17x
 
 private:
-    // QS_CONSTEXPR11 iterator       wrap_iter(pointer pos) const QS_NOEXCEPT { return pos; }
-    // QS_CONSTEXPR11 const_iterator wrap_iter(const_pointer pos) const QS_NOEXCEPT { return pos; }
+    // QS_CONSTEXPR11 iterator       wrap_iter(pointer pos) const noexcept { return pos; }
+    // QS_CONSTEXPR11 const_iterator wrap_iter(const_pointer pos) const noexcept { return pos; }
 
-    // QS_CONSTEXPR11 pointer        unwrap_iter(iterator it) const QS_NOEXCEPT { return it; }
-    // QS_CONSTEXPR11 const_iterator unwrap_iter(const_iterator it) const QS_NOEXCEPT { return it; }
+    // QS_CONSTEXPR11 pointer        unwrap_iter(iterator it) const noexcept { return it; }
+    // QS_CONSTEXPR11 const_iterator unwrap_iter(const_iterator it) const noexcept { return it; }
 
     QS_CONSTEXPR11 void throw_bad_alloc_() const { throw std::bad_alloc(); }
     QS_CONSTEXPR11 void throw_out_of_range_() const { throw std::out_of_range("inplace_vector"); }

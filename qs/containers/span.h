@@ -1,7 +1,7 @@
 #ifndef QS_SPAN_H_
 #define QS_SPAN_H_
 
-#include <qs/base.h>
+#include <qs/config.h>
 
 QS_NAMESPACE_BEGIN
 

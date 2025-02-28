@@ -1,7 +1,7 @@
 #ifndef QS_TEST_HEADER_H
 #define QS_TEST_HEADER_H
 
-#include <qs/base.h>
+#include <qs/config.h>
 
 #ifdef QS_TESTING
 

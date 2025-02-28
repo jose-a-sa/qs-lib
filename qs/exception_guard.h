@@ -2,13 +2,13 @@
 #define QS_EXCEPTION_GUARD_H_
 
 
-#include <qs/base.h>
+#include <qs/config.h>
 #include <utility>
 
 
 QS_NAMESPACE_BEGIN
 
-namespace detail
+namespace intl
 {
     template<class Rollback, bool HasExceptions>
     struct exception_guard_impl;
@@ -22,7 +22,7 @@ namespace detail
             : rollback_(std::move(rollback)),
               complete_(false) {};
 
-        QS_CONSTEXPR11 exception_guard_impl(exception_guard_impl&& other) QS_NOEXCEPT_B(
+        QS_CONSTEXPR11 exception_guard_impl(exception_guard_impl&& other) noexcept(
             std::is_nothrow_move_constructible<Rollback>::value)
             : rollback_(std::move(other.rollback_)),
               complete_(std::exchange(other.complete_, true))
@@ -32,7 +32,7 @@ namespace detail
         exception_guard_impl& operator=(exception_guard_impl const&) = delete;
         exception_guard_impl& operator=(exception_guard_impl&&)      = delete;
 
-        QS_CONSTEXPR14 void complete() QS_NOEXCEPT { complete_ = true; }
+        QS_CONSTEXPR14 void complete() noexcept { complete_ = true; }
 
         QS_CONSTEXPR20 ~exception_guard_impl()
         {
@@ -56,13 +56,13 @@ namespace detail
         exception_guard_impl(exception_guard_impl const&)            = delete;
         exception_guard_impl& operator=(exception_guard_impl const&) = delete;
 
-        QS_CONSTEXPR11 exception_guard_impl(exception_guard_impl&& other) QS_NOEXCEPT_B(
+        QS_CONSTEXPR11 exception_guard_impl(exception_guard_impl&& other) noexcept(
             std::is_nothrow_move_constructible<Rollback>::value)
             : complete_(std::exchange(other.complete_, true))
         {}
         exception_guard_impl& operator=(exception_guard_impl&&) = delete;
 
-        QS_CONSTEXPR14 void complete() QS_NOEXCEPT { complete_ = true; }
+        QS_CONSTEXPR14 void complete() noexcept { complete_ = true; }
 
         QS_CONSTEXPR20 ~exception_guard_impl()
         {
@@ -73,12 +73,12 @@ namespace detail
         bool complete_;
     };
 
-} // namespace detail
+} // namespace intl
 
-template<class RollBackF>
-struct exception_guard : detail::exception_guard_impl<RollBackF, config::has_noexcept>
+template<class RollBack>
+struct exception_guard : intl::exception_guard_impl<RollBack, config::has_exceptions>
 {
-    using detail::exception_guard_impl<RollBackF, config::has_noexcept>::exception_guard_impl;
+    using intl::exception_guard_impl<RollBack, config::has_exceptions>::exception_guard_impl;
 };
 
 template<class Rollback>

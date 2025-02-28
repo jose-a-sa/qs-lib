@@ -2,6 +2,7 @@ qs/experimental
 
 .idea
 .vscode
+.cache
 
 cmake-build-*
 build

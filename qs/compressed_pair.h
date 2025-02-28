@@ -1,15 +1,15 @@
 #ifndef QS_COMPRESSED_PAIR_H_
 #define QS_COMPRESSED_PAIR_H_
 
-#include <qs/base.h>
+#include <qs/config.h>
 
-#include <utility>
 #include <tuple>
+#include <utility>
 
 
 QS_NAMESPACE_BEGIN
 
-namespace detail
+namespace intl
 {
     // Tag used to default initialize one or both of the pair's elements.
     struct default_init_tag
@@ -40,8 +40,8 @@ namespace detail
             : value_(std::forward<Args>(std::get<Is>(args))...)
         {}
 
-        QS_CONSTEXPR14 reference       get() QS_NOEXCEPT { return value_; }
-        QS_CONSTEXPR11 const_reference get() const QS_NOEXCEPT { return value_; }
+        QS_CONSTEXPR14 reference       get() noexcept { return value_; }
+        QS_CONSTEXPR11 const_reference get() const noexcept { return value_; }
 
     private:
         T value_;
@@ -71,15 +71,15 @@ namespace detail
             : value_type(std::forward<Args>(std::get<Is>(args))...)
         {}
 
-        QS_CONSTEXPR14 reference       get() QS_NOEXCEPT { return *this; }
-        QS_CONSTEXPR11 const_reference get() const QS_NOEXCEPT { return *this; }
+        QS_CONSTEXPR14 reference       get() noexcept { return *this; }
+        QS_CONSTEXPR11 const_reference get() const noexcept { return *this; }
     };
 
-}; // namespace detail
+}; // namespace intl
 
 
 template<class T1, class T2>
-class compressed_pair : private detail::compressed_pair_elem<T1, 0>, private detail::compressed_pair_elem<T2, 1>
+class compressed_pair : private intl::compressed_pair_elem<T1, 0>, private intl::compressed_pair_elem<T2, 1>
 {
 public:
     // static_assert((!std::is_same<T1, T2>::value),
@@ -87,13 +87,14 @@ public:
     //               "The current implementation is NOT ABI-compatible with the previous implementation for this "
     //               "configuration");
 
-    using base1 = detail::compressed_pair_elem<T1, 0>;
-    using base2 = detail::compressed_pair_elem<T2, 1>;
+    using base1 = intl::compressed_pair_elem<T1, 0>;
+    using base2 = intl::compressed_pair_elem<T2, 1>;
 
-    template<class = std::enable_if_t<std::is_default_constructible<T1>::value && std::is_default_constructible<T2>::value>>
+    template<
+        class = std::enable_if_t<std::is_default_constructible<T1>::value && std::is_default_constructible<T2>::value>>
     QS_CONSTEXPR11 explicit compressed_pair()
-        : base1(detail::value_init_tag{}),
-          base2(detail::value_init_tag{})
+        : base1(intl::value_init_tag{}),
+          base2(intl::value_init_tag{})
     {}
 
     template<class U1, class U2>
@@ -109,19 +110,19 @@ public:
           base2(pc, std::move(args2), std::make_index_sequence<sizeof...(Args2)>{})
     {}
 
-    QS_CONSTEXPR14 typename base1::reference       first() QS_NOEXCEPT { return static_cast<base1&>(*this).get(); }
-    QS_CONSTEXPR11 typename base1::const_reference first() const QS_NOEXCEPT
+    QS_CONSTEXPR14 typename base1::reference       first() noexcept { return static_cast<base1&>(*this).get(); }
+    QS_CONSTEXPR11 typename base1::const_reference first() const noexcept
     {
         return static_cast<base1 const&>(*this).get();
     }
-    QS_CONSTEXPR14 typename base2::reference       second() QS_NOEXCEPT { return static_cast<base2&>(*this).get(); }
-    QS_CONSTEXPR11 typename base2::const_reference second() const QS_NOEXCEPT
+    QS_CONSTEXPR14 typename base2::reference       second() noexcept { return static_cast<base2&>(*this).get(); }
+    QS_CONSTEXPR11 typename base2::const_reference second() const noexcept
     {
         return static_cast<base2 const&>(*this).get();
     }
 
     QS_CONSTEXPR14 void swap(compressed_pair& x)
-        QS_NOEXCEPT_B(std::is_nothrow_swappable<T1>::value && std::is_nothrow_swappable<T2>::value)
+        noexcept(std::is_nothrow_swappable<T1>::value&& std::is_nothrow_swappable<T2>::value)
     {
         std::swap(first(), x.first());
         std::swap(second(), x.second());
@@ -134,7 +135,7 @@ QS_NAMESPACE_END
 
 template<class T1, class T2>
 inline QS_CONSTEXPR14 void swap(qs::compressed_pair<T1, T2>& x, qs::compressed_pair<T1, T2>& y)
-    QS_NOEXCEPT_B(std::is_nothrow_swappable<T1>::value&& std::is_nothrow_swappable<T2>::value)
+    noexcept(std::is_nothrow_swappable<T1>::value && std::is_nothrow_swappable<T2>::value)
 {
     x.swap(y);
 }

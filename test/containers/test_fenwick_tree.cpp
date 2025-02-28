@@ -72,7 +72,7 @@ namespace test
     }
 
 
-#if QS_HAS(CTAD)
+#if defined (__cpp_deduction_guides)
 
     template<class TypeTest>
     struct FenwickTreeCTADTest
