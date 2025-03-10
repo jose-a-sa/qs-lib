@@ -12,7 +12,7 @@ QS_NAMESPACE_BEGIN
 namespace intl
 {
     // Tag used to default initialize one or both of the pair's elements.
-    struct default_init_tag
+    struct init_default_tag
     {};
     struct value_init_tag
     {};
@@ -24,7 +24,7 @@ namespace intl
         using reference       = T&;
         using const_reference = T const&;
 
-        QS_CONSTEXPR11 explicit compressed_pair_elem(default_init_tag) {}
+        QS_CONSTEXPR11 explicit compressed_pair_elem(init_default_tag) {}
         QS_CONSTEXPR11 explicit compressed_pair_elem(value_init_tag)
             : value_()
         {}
@@ -55,7 +55,7 @@ namespace intl
         using const_reference = T const&;
 
         QS_CONSTEXPR11 explicit compressed_pair_elem() = default;
-        //            constexpr explicit compressed_pair_elem(default_init_tag) {}
+        //            constexpr explicit compressed_pair_elem(init_default_tag) {}
         QS_CONSTEXPR11 explicit compressed_pair_elem(value_init_tag)
             : value_type()
         {}

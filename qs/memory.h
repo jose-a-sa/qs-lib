@@ -29,7 +29,7 @@ template<class T, class... Args,
          class = decltype(::new(std::declval<void*>()) T(std::declval<Args>()...))>
 QS_CONSTEXPR20 T* construct_at(T* location, Args&&... args)
 {
-    QS_ASSERT(location != nullptr, "null pointer location given to construct_at");
+    QS_VERIFY(location != nullptr, "null pointer location given to construct_at");
     return ::new(const_cast<void*>(static_cast<void const volatile*>(location)))
         T(std::forward<Args>(args)...);
     // return ::new(static_cast<void*>(location)) T(std::forward<Args>(args)...);
@@ -38,7 +38,7 @@ QS_CONSTEXPR20 T* construct_at(T* location, Args&&... args)
 template<class T, enable_if_t<!std::is_array<T>::value, int> = 0>
 QS_CONSTEXPR20 void destroy_at(T* location) noexcept
 {
-    QS_ASSERT(location != nullptr, "null pointer given to destroy_at");
+    QS_VERIFY(location != nullptr, "null pointer given to destroy_at");
     location->~T();
 }
 

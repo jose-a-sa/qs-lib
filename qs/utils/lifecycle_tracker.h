@@ -127,11 +127,9 @@ struct lifecycle_counters
 //     using pointer         = value_type*; // Pointer to the type
 //     using const_pointer   = value_type const*; // Const pointer to the type
 
-//     // Logs a specific lifecycle event for the given type instance
 //     template<lifecycle_event Cnt>
 //     QS_CONSTEXPR17 void log_event(const_reference self, std::string const& type_name) const;
 
-//     // Prints the current lifecycle counters for the given type
 //     QS_CONSTEXPR17 void print_counters(lifecycle_counters const& cnts,
 //                                        std::string const&        type_name) const;
 // };
@@ -515,6 +513,7 @@ namespace intl
             // magic of logging occurs here, where we go from Base -> Derived: value_type, Base ->
             // value_type we pass value_type const& reference to the logger which can be used to
             // format the log message logger is customizable
+            QS_VERIFY(static_cast<T const*>(self()), "failed to cast to value_type");
             logger_.template log_event<Cnt>(*static_cast<T const*>(self()), get_type_name());
         }
     };

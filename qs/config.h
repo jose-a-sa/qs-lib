@@ -9,8 +9,8 @@
 
 #define QS_NAMESPACE qs
 
-#define QS_NAMESPACE_BEGIN                                                                                   \
-    namespace QS_NAMESPACE                                                                                   \
+#define QS_NAMESPACE_BEGIN                                                                                             \
+    namespace QS_NAMESPACE                                                                                             \
     {
 #define QS_NAMESPACE_END }
 
@@ -329,13 +329,76 @@
 
 QS_NAMESPACE_BEGIN
 
-
 namespace config
 {
     QS_INLINE_VAR static QS_CONSTEXPR11 unsigned cpp_std_version = (QS_STD_VERSION);
     QS_INLINE_VAR static QS_CONSTEXPR11 unsigned cache_line_size = (QS_CACHELINE_SIZE);
     QS_INLINE_VAR static QS_CONSTEXPR11 bool     has_exceptions  = (QS_EXCEPTIONS == 1);
 
+    QS_NORETURN QS_INLINE QS_CONSTEXPR17 void assert_fail(char const* file, int line, char const* message);
+} // namespace config
+
+
+namespace intl
+{
+    template<class... Args>
+    QS_CONSTEXPR11 int ignore_unused(Args&&...)
+    {
+        return 0;
+    }
+
+    template<class... Args>
+    QS_CONSTEXPR11 void swallow(Args&&... args)
+    {
+        int dummy[] = {0, (static_cast<void>(args), 0)...};
+        return ignore_unused(dummy);
+    }
+} // namespace intl
+
+
+QS_NAMESPACE_END
+
+
+#ifdef QS_ASSERT
+// Use the provided definition.
+#elif defined(NDEBUG)
+#define QS_ASSERT(condition, message) (QS_NAMESPACE::intl::ignore_unused)((condition), (message)) // Avoid -Wempty-body.
+#else
+#define QS_ASSERT(condition, message)                                                                                  \
+    ((condition) ? ((void)0) : ((QS_NAMESPACE::config::assert_fail)(__FILE_NAME__, __LINE__, (message))))
+#endif
+
+
+// clang-format off
+#ifdef QS_ASSUME
+// Use the provided definition.
+#elif defined(__CUDACC__) && defined(__CUDA_ARCH__)
+#define QS_ASSUME(condition) do { if (!(condition)) __builtin_unreachable(); } while (0)
+#elif QS_HAS_BUILTIN(__builtin_assume) || QS_GCC_VERSION >= 900 || defined(__NVCOMPILER)
+#define QS_ASSUME(condition) __builtin_assume(condition)
+#elif QS_MSVC_VERSION || defined(__INTEL_COMPILER) || defined(__INTEL_LLVM_COMPILER)
+#define QS_ASSUME(condition) __assume(condition)
+#elif defined(__cpp_lib_assume)
+#include <utility>
+#define QS_ASSUME(condition) std::assume(condition)
+#else
+#define QS_ASSUME(condition) ((QS_NAMESPACE::intl::ignore_unused)(condition))
+#endif
+// clang-format on
+
+
+#ifdef QS_VERIFY
+// Use the provided definition.
+#else
+#define QS_VERIFY(cond, msg) QS_ASSERT(cond, msg)
+#endif
+
+
+QS_NAMESPACE_BEGIN
+
+
+namespace config
+{
     QS_NORETURN QS_INLINE QS_CONSTEXPR17 void assert_fail(char const* file, int line, char const* message)
     {
         std::fprintf(stderr, "[%s:%d] assert_fail: %s\n", file, line, message);
@@ -343,27 +406,8 @@ namespace config
     }
 } // namespace config
 
-
 namespace intl
 {
-    template<class... Args>
-    QS_CONSTEXPR14 void ignore_unused(Args&&...)
-    {}
-
-    template<class... Args>
-    QS_CONSTEXPR14 void swallow(Args&&... args)
-    {
-        int dummy[] = {0, (static_cast<void>(args), 0)...};
-        ignore_unused(dummy);
-    }
-
-    struct not_a_type
-    {
-        not_a_type()                             = delete;
-        not_a_type(not_a_type const&)            = delete;
-        not_a_type& operator=(not_a_type const&) = delete;
-    };
-
     template<class... Args>
     struct make_void
     {
@@ -372,35 +416,58 @@ namespace intl
 } // namespace intl
 
 
-#ifdef QS_ASSERT
-// Use the provided definition.
-#elif defined(NDEBUG)
-#define QS_ASSERT(condition, message)                                                                        \
-    (QS_NAMESPACE::intl::ignore_unused)((condition), (message)) // Avoid -Wempty-body.
-#else
-#define QS_ASSERT(condition, message)                                                                        \
-    ((condition) ? ((void)0) : ((QS_NAMESPACE::config::assert_fail)(__FILE_NAME__, __LINE__, (message))))
-#endif
-
-
 template<class... Args>
 using void_t = typename intl::make_void<Args...>::type;
-template<class T>
-using decay_t = typename std::decay<T>::type;
+
+template<bool B, class T = void>
+struct enable_if : std::enable_if<B, T>
+{};
 template<bool B, class T = void>
 using enable_if_t = typename std::enable_if<B, T>::type;
+
 template<bool B, class T, class F>
 using conditional_t = typename std::conditional<B, T, F>::type;
+
+template<class T>
+struct decay : std::decay<T>
+{};
+template<class T>
+using decay_t = typename std::decay<T>::type;
+
+namespace intl
+{
+    template<template<class...> class Fn, class... Args, class = Fn<Args...>>
+    static constexpr auto is_valid_expansion_impl(int) -> std::true_type;
+    template<template<class...> class, class...>
+    static constexpr auto is_valid_expansion_impl(...) -> std::false_type;
+} // namespace intl
+
+template<template<class...> class Fn, class... Args>
+using is_valid_expansion = decltype(intl::is_valid_expansion_impl<Fn, Args...>(0));
+
+
 template<class T>
 using remove_reference_t = typename std::remove_reference<T>::type;
 template<class T>
 using remove_const_t = typename std::remove_const<T>::type;
-
+template<class T>
+using remove_cv_t = typename std::remove_cv<T>::type;
 template<class T>
 struct remove_cvref : std::remove_cv<remove_reference_t<T>>
 {};
 template<class T>
 using remove_cvref_t = typename remove_cvref<T>::type;
+template<class T>
+using add_rvalue_reference_t = typename std::add_rvalue_reference<T>::type;
+template<class T>
+using add_lvalue_reference_t = typename std::add_lvalue_reference<T>::type;
+template<class T>
+using add_const_t = typename std::add_const<T>::type;
+template<class T>
+using add_pointer_t = typename std::add_pointer<T>::type;
+template<class T>
+using make_cref_t = add_lvalue_reference_t<add_const_t<remove_reference_t<T>>>;
+
 template<class T>
 struct type_identity
 {
@@ -408,6 +475,36 @@ struct type_identity
 };
 template<class T>
 using type_identity_t = typename type_identity<T>::type;
+
+
+template<class... Args>
+struct disjunction;
+template<>
+struct disjunction<> : std::false_type
+{};
+template<class B1>
+struct disjunction<B1> : B1
+{};
+template<class B1, class... Rest>
+struct disjunction<B1, Rest...> : conditional_t<B1::value, std::true_type, disjunction<Rest...>>
+{};
+
+
+template<class... Args>
+struct conjunction;
+template<>
+struct conjunction<> : std::true_type
+{};
+template<class B1>
+struct conjunction<B1> : B1
+{};
+template<class B1, class... Rest>
+struct conjunction<B1, Rest...> : conditional_t<!B1::value, std::false_type, conjunction<Rest...>>
+{};
+
+template<class B1>
+struct negation : std::integral_constant<bool, !B1::value>
+{};
 
 
 QS_INLINE QS_CONSTEXPR17 bool is_constant_evaluated(bool const default_value = false) noexcept

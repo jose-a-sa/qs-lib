@@ -1,12 +1,12 @@
 #ifndef QS_EXCEPTION_GUARD_H_
 #define QS_EXCEPTION_GUARD_H_
 
-
 #include <qs/config.h>
+
 #include <utility>
 
-
 QS_NAMESPACE_BEGIN
+
 
 namespace intl
 {
@@ -20,10 +20,10 @@ namespace intl
 
         QS_CONSTEXPR11 explicit exception_guard_impl(Rollback rollback)
             : rollback_(std::move(rollback)),
-              complete_(false) {};
+              complete_(false){};
 
-        QS_CONSTEXPR11 exception_guard_impl(exception_guard_impl&& other) noexcept(
-            std::is_nothrow_move_constructible<Rollback>::value)
+        QS_CONSTEXPR11
+        exception_guard_impl(exception_guard_impl&& other) noexcept(std::is_nothrow_move_constructible<Rollback>::value)
             : rollback_(std::move(other.rollback_)),
               complete_(std::exchange(other.complete_, true))
         {}
@@ -51,13 +51,13 @@ namespace intl
         exception_guard_impl() = delete;
 
         QS_CONSTEXPR11 explicit exception_guard_impl(Rollback)
-            : complete_(false) {};
+            : complete_(false){};
 
         exception_guard_impl(exception_guard_impl const&)            = delete;
         exception_guard_impl& operator=(exception_guard_impl const&) = delete;
 
-        QS_CONSTEXPR11 exception_guard_impl(exception_guard_impl&& other) noexcept(
-            std::is_nothrow_move_constructible<Rollback>::value)
+        QS_CONSTEXPR11
+        exception_guard_impl(exception_guard_impl&& other) noexcept(std::is_nothrow_move_constructible<Rollback>::value)
             : complete_(std::exchange(other.complete_, true))
         {}
         exception_guard_impl& operator=(exception_guard_impl&&) = delete;
