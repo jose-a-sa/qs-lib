@@ -223,7 +223,7 @@ namespace meta
         template<class T, class Tester = meta::constant_fn<std::true_type>>
         class op_star
         {
-            template<class U, class Res = decltype(std::declval<U>().operator*())>
+            template<class U, class Res = decltype(*std::declval<U>())>
             static auto test(int) -> meta::invoke<Tester, Res>;
             template<class U>
             static auto test(...) -> std::false_type;

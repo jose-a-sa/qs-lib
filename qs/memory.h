@@ -5,6 +5,7 @@
 
 QS_NAMESPACE_BEGIN
 
+
 #if defined(__cpp_lib_byte)
 using std::byte;
 #else

@@ -1,7 +1,9 @@
 #ifndef QS_TRAITS_ITERATOR_H
 #define QS_TRAITS_ITERATOR_H
 
-
+#include "qs/memory.h"
+#include <__memory/pointer_traits.h>
+#include <memory>
 #include <qs/config.h>
 #include <qs/meta.h>
 #include <qs/traits/base.h>
@@ -19,28 +21,22 @@ QS_NAMESPACE_BEGIN
 template<class Iter, class = void>
 struct iter_traits_getter : type_identity<remove_cvref_t<Iter>>
 {};
-
 template<class Iter>
 struct iter_traits_getter<Iter, void_t<std::iterator_traits<remove_cvref_t<Iter>>>>
     : type_identity<std::iterator_traits<remove_cvref_t<Iter>>>
 {};
-
 template<class Iter>
 using iter_traits_getter_t = typename iter_traits_getter<Iter>::type;
 
 
 template<class Iter>
 using iter_reference_t = decltype(*std::declval<Iter&>());
-
 template<class Iter>
 using iter_rvalue_reference_t = decltype(*std::declval<std::move_iterator<Iter>&>());
-
 template<class Iter>
 using iter_value_t = typename iter_traits_getter_t<Iter>::value_type;
-
 template<class Iter>
 using iter_difference_t = typename iter_traits_getter_t<Iter>::difference_type;
-
 template<class Iter>
 using iter_category_t = typename iter_traits_getter_t<Iter>::iterator_category;
 
@@ -51,11 +47,33 @@ struct can_reference : std::false_type
 template<class T>
 struct can_reference<T, std::void_t<T&>> : std::true_type
 {};
-
 template<class T>
-struct is_dereferencable : meta::test::op_star<T, meta::fn<can_reference>>
+struct is_dereferencable : meta::test::op_star<T&, meta::fn<can_reference>>
 {};
 
+
+// -----------------------------------------------------------------------------
+// to_address (ignore std::pointer_traits<Ptr>::to_address)
+// -----------------------------------------------------------------------------
+
+// base case of the to_address overload
+template<class T>
+QS_CONSTEXPR11 T* to_address(T* p) noexcept
+{
+    static_assert(!std::is_function<T>::value, "T is a function type");
+    return p;
+}
+
+// to_address overload for fancy pointers which must have operator->() overload
+template<class Ptr, enable_if_t<meta::test::op_star<Ptr const&>::value && std::is_class<Ptr>::value, int> = 0>
+QS_CONSTEXPR11 auto to_address(Ptr const& p) noexcept -> decay_t<decltype(to_address(p.operator->()))>
+{
+    return to_address(p.operator->());
+}
+
+// -----------------------------------------------------------------------------
+// check category tag helper
+// -----------------------------------------------------------------------------
 
 template<class Iter, class CategoryTag>
 class is_tagged_with_category
@@ -259,7 +277,7 @@ struct is_random_access_iterator<Iter, void_t<iter_difference_t<Iter>, iter_refe
                   meta::test::op_minus_assign<Iter&, iter_difference_t<Iter> const&, meta::fn<is_same_as, Iter&>>,
                   meta::test::op_minus<Iter const&, iter_difference_t<Iter> const&, meta::fn<is_same_as, Iter>>,
                   meta::test::op_subscript<Iter const&, iter_difference_t<Iter> const&,
-                                          meta::fn<is_same_as, iter_reference_t<Iter>>>>
+                                           meta::fn<is_same_as, iter_reference_t<Iter>>>>
 {};
 
 
@@ -273,18 +291,22 @@ struct is_random_access_iterator_tagged
 // [iterator.concept.contiguous]
 // -----------------------------------------------------------------------------
 
-
-template<class Iter, class = void>
-struct is_contiguous_iterator : std::false_type
-{};
-
 template<class Iter>
-struct is_contiguous_iterator<Iter, void_t<iter_value_t<Iter>, iter_reference_t<Iter>>>
-    : conjunction<is_random_access_iterator<Iter>, std::is_lvalue_reference<iter_reference_t<Iter>>,
-                  is_same_as<iter_value_t<Iter>, remove_cvref_t<iter_reference_t<Iter>>>>
-{};
-// note: ignored std::to_address requirement
+class is_contiguous_iterator
+{
+    template<class I, class Value = iter_value_t<I>, class Ref = iter_reference_t<I>,
+             class Addr = decltype(to_address(std::declval<I const&>()))>
+    static auto test(int) -> conjunction<std::is_lvalue_reference<Ref>, is_same_as<Value, remove_cvref_t<Ref>>,
+                                         is_same_as<Addr, add_pointer_t<Ref>>>;
+    template<class>
+    static auto test(...) -> std::false_type;
+
+public:
+    static constexpr bool value = is_random_access_iterator<Iter>::value && decltype(test<Iter>(0))::value;
+};
+
 
 QS_NAMESPACE_END
+
 
 #endif // QS_TRAITS_ITERATOR_H

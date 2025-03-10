@@ -13,6 +13,7 @@
 #include <new>
 #include <stdexcept>
 
+
 QS_NAMESPACE_BEGIN
 
 /**
