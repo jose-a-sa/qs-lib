@@ -44,15 +44,15 @@ namespace meta
     using list_concat_t = t<list_concat<Ls...>>;
 
     template<>
-    struct list_concat<> : id<list<>>
+    struct list_concat<> : type_identity<list<>>
     {};
 
     template<class... Ts>
-    struct list_concat<list<Ts...>> : id<list<Ts...>>
+    struct list_concat<list<Ts...>> : type_identity<list<Ts...>>
     {};
 
     template<class... Ts, class... Us>
-    struct list_concat<list<Ts...>, list<Us...>> : id<list<Ts..., Us...>>
+    struct list_concat<list<Ts...>, list<Us...>> : type_identity<list<Ts..., Us...>>
     {};
 
     template<class... Ts, class... Us, class... Vs, class... Rest>
@@ -189,6 +189,19 @@ namespace meta
         public:
             static constexpr bool value = decltype(test<T>(0))::value;
         };
+
+        template<class T, class... Args>
+        class placement_new
+        {
+            template<class U, class Res = decltype(::new(std::declval<void*>()) T(std::declval<Args>()...))>
+            static auto test(int) -> std::true_type;
+            template<class>
+            static auto test(...) -> std::false_type;
+
+        public:
+            static constexpr bool value = decltype(test<T>(0))::value;
+        };
+
 
         // -----------------------------------------------------------------------------
         // Access operators

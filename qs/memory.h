@@ -8,7 +8,9 @@ QS_NAMESPACE_BEGIN
 #if defined(__cpp_lib_byte)
 using std::byte;
 #else
-enum class byte : unsigned char {};
+enum class byte : unsigned char
+{
+};
 #endif
 
 
@@ -24,14 +26,12 @@ QS_INLINE QS_CONSTEXPR17 T* launder(T* p) noexcept
 #endif
 }
 
-
-template<class T, class... Args,
-         class = decltype(::new(std::declval<void*>()) T(std::declval<Args>()...))>
+// Note: maybe replace decltype check with meta::test::placement_new<T, Args...> in the future
+template<class T, class... Args, class = decltype(::new(std::declval<void*>()) T(std::declval<Args>()...))>
 QS_CONSTEXPR20 T* construct_at(T* location, Args&&... args)
 {
     QS_VERIFY(location != nullptr, "null pointer location given to construct_at");
-    return ::new(const_cast<void*>(static_cast<void const volatile*>(location)))
-        T(std::forward<Args>(args)...);
+    return ::new(const_cast<void*>(static_cast<void const volatile*>(location))) T(std::forward<Args>(args)...);
     // return ::new(static_cast<void*>(location)) T(std::forward<Args>(args)...);
 }
 
@@ -51,8 +51,7 @@ QS_CONSTEXPR20 ForwardIterator destroy(ForwardIterator first, ForwardIterator la
 }
 
 template<class BidirectionalIterator>
-QS_CONSTEXPR20 BidirectionalIterator reverse_destroy(BidirectionalIterator first,
-                                                     BidirectionalIterator last) noexcept
+QS_CONSTEXPR20 BidirectionalIterator reverse_destroy(BidirectionalIterator first, BidirectionalIterator last) noexcept
 {
     while(last != first)
         destroy_at(std::addressof(*(--last)));
