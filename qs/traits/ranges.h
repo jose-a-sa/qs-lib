@@ -28,7 +28,7 @@ template<class Rng>
 using range_common_reference_t = iter_common_reference_t<iterator_t<Rng>>;
 
 template<class Rng>
-using range_size_t = decltype(std::size(std::declval<Rng&>()));
+using range_size_t = decltype(qs::size(std::declval<Rng&>()));
 
 
 // [range.range]
@@ -105,7 +105,7 @@ template<class Rng>
 class is_contiguous_range : std::false_type
 {
     template<class R, class It = iterator_t<R>, class Ref = range_reference_t<R>,
-             class D = decltype(std::data(std::declval<R&>()))>
+             class D = decltype(qs::data(std::declval<R&>()))>
     static constexpr auto test(int) -> conjunction<is_same_as<D, add_pointer_t<Ref>>, is_contiguous_iterator<It>>;
     template<class>
     static constexpr auto test(...) -> std::false_type;

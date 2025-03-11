@@ -45,7 +45,7 @@ template<class T, class = void>
 struct can_reference : std::false_type
 {};
 template<class T>
-struct can_reference<T, std::void_t<T&>> : std::true_type
+struct can_reference<T, void_t<T&>> : std::true_type
 {};
 template<class T>
 struct is_dereferencable : meta::test::op_star<T&, meta::fn<can_reference>>
@@ -119,7 +119,8 @@ class is_indirectly_writable
 {
     template<class O, class T>
     static auto test_write(int)
-        -> decltype(*std::declval<O&>() = std::declval<T&&>(), *std::declval<O&&>() = std::declval<T&&>(),
+        -> decltype(*std::declval<O&>() = std::declval<T&&>(), 
+                    *std::declval<O&&>() = std::declval<T&&>(),
                     const_cast<const iter_reference_t<O>&&>(*std::declval<O&>())  = std::declval<T&&>(),
                     const_cast<const iter_reference_t<O>&&>(*std::declval<O&&>()) = std::declval<T&&>(),
                     std::true_type{});

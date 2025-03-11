@@ -51,3 +51,5 @@ endfunction()
 add_test_binary(fenwick_tree containers/test_fenwick_tree.cpp)
 
 add_test_binary(lifetime_tracker utils/test_lifetime_tracker.cpp)
+
+add_test_binary(span test_span.cpp)

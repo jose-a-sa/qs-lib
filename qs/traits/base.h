@@ -326,6 +326,8 @@ struct is_assignable_from
 // [concept.swappable]
 // -----------------------------------------------------------------------------
 
+// NOTE: std::is_swappable and std::is_swappable_with are implemented in C++17
+
 template<class T>
 struct is_swappable : std::is_swappable<T>
 {};

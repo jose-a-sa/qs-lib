@@ -3,9 +3,12 @@
 
 #include <cstddef> // requires for _HAS_EXCEPTIONS on MSVC
 #include <cstdio>
-#include <exception>
-#include <new> // requires for std::hardware_destructive_interference_size
+#include <cstdlib>
+#include <stdexcept>
 #include <type_traits>
+#include <version>
+#include <initializer_list>
+
 
 #define QS_NAMESPACE qs
 
@@ -86,6 +89,15 @@
 #define QS_X86 1
 #else
 #define QS_X86 0
+#endif
+
+// Detect build type
+#ifdef QS_DEBUG
+// Use the provided definition.
+#elif defined(_DEBUG) || defined(DEBUG) || !defined(NDEBUG)
+#define QS_DEBUG 1
+#else
+#define QS_DEBUG 0
 #endif
 
 // Detect standard library versions.
@@ -277,18 +289,38 @@
 #define QS_DEPRECATED_F(...)
 #endif
 
-#ifdef QS_INLINE
+#ifdef QS_ALWAYS_INLINE
 // Use the provided definition.
 #elif QS_GCC_VERSION || QS_CLANG_VERSION
 #define QS_ALWAYS_INLINE inline __attribute__((always_inline))
+#elif QS_MSVC_VERSION
+#define QS_ALWAYS_INLINE __forceinline
 #else
 #define QS_ALWAYS_INLINE inline
 #endif
+
+#ifdef QS_INLINE
 // A version of QS_INLINE to prevent code bloat in debug mode.
-#ifdef NDEBUG
+#elif QS_DEBUG
 #define QS_INLINE QS_ALWAYS_INLINE
 #else
 #define QS_INLINE inline
+#endif
+
+#ifdef QS_INLINE_VAR
+// Use the provided definition
+#elif defined(__cpp_inline_variables)
+#define QS_INLINE_VAR inline
+#else
+#define QS_INLINE_VAR
+#endif
+
+#ifdef QS_INLINE_VAR_INIT
+// Use the provided definition
+#elif defined(__cpp_inline_variables)
+#define QS_INLINE_VAR_INIT(...) __VA_ARGS__
+#else
+#define QS_INLINE_VAR_INIT(...)
 #endif
 
 #if QS_GCC_VERSION || QS_CLANG_VERSION
@@ -297,20 +329,36 @@
 #define QS_VISIBILITY(value)
 #endif
 
-#ifdef QS_INLINE_VAR
-// Use the provided definition
-#elif defined(__cpp_inline_variables)
-#define QS_INLINE_VAR inline
-#define QS_INLINE_VAR_INIT(...) __VA_ARGS__
+
+#ifdef QS_LIKELY
+// Use the provided definition.
+#elif QS_GCC_VERSION || QS_CLANG_VERSION
+#define QS_LIKELY(x) __builtin_expect(!!(x), 1)
 #else
-#define QS_INLINE_VAR
-#define QS_INLINE_VAR_INIT(...)
+#define QS_LIKELY(x) (x)
+#endif
+
+#ifdef QS_UNLIKELY
+// Use the provided definition.
+#elif QS_GCC_VERSION || QS_CLANG_VERSION
+#define QS_UNLIKELY(x) __builtin_expect(!!(x), 0)
+#else
+#define QS_UNLIKELY(x) (x)
+#endif
+
+#ifdef QS_MAYBE_UNUSED
+// Use the provided definition.
+#elif QS_HAS_CPP17_ATTRIBUTE(maybe_unused)
+#define QS_MAYBE_UNUSED [[maybe_unused]]
+#else
+#define QS_MAYBE_UNUSED
 #endif
 
 
 #ifdef QS_CACHELINE_SIZE
 // Use the provided definition
 #elif defined(__cpp_lib_hardware_interference_size)
+#include <new> // requires for std::hardware_destructive_interference_size
 #define QS_CACHELINE_SIZE std::hardware_destructive_interference_size
 #elif (QS_X86_64 || QS_X86)
 #define QS_CACHELINE_SIZE 64 // x86 and x86_64 CPUs (Intel & AMD)
@@ -329,91 +377,82 @@
 
 QS_NAMESPACE_BEGIN
 
-namespace config
-{
-    QS_INLINE_VAR static QS_CONSTEXPR11 unsigned cpp_std_version = (QS_STD_VERSION);
-    QS_INLINE_VAR static QS_CONSTEXPR11 unsigned cache_line_size = (QS_CACHELINE_SIZE);
-    QS_INLINE_VAR static QS_CONSTEXPR11 bool     has_exceptions  = (QS_EXCEPTIONS == 1);
-
-    QS_NORETURN QS_INLINE QS_CONSTEXPR17 void assert_fail(char const* file, int line, char const* message);
-} // namespace config
-
-
 namespace intl
 {
     template<class... Args>
-    QS_CONSTEXPR11 int ignore_unused(Args&&...)
-    {
-        return 0;
-    }
+    QS_ALWAYS_INLINE QS_CONSTEXPR17 void ignore_unused(Args&&...)
+    {}
 
     template<class... Args>
-    QS_CONSTEXPR11 void swallow(Args&&... args)
+    QS_ALWAYS_INLINE QS_CONSTEXPR17 void swallow(Args&&... args)
     {
         int dummy[] = {0, (static_cast<void>(args), 0)...};
-        return ignore_unused(dummy);
+        ignore_unused(dummy);
     }
-} // namespace intl
 
-
-QS_NAMESPACE_END
-
-
-#ifdef QS_ASSERT
-// Use the provided definition.
-#elif defined(NDEBUG)
-#define QS_ASSERT(condition, message) (QS_NAMESPACE::intl::ignore_unused)((condition), (message)) // Avoid -Wempty-body.
-#else
-#define QS_ASSERT(condition, message)                                                                                  \
-    ((condition) ? ((void)0) : ((QS_NAMESPACE::config::assert_fail)(__FILE_NAME__, __LINE__, (message))))
-#endif
-
-
-// clang-format off
-#ifdef QS_ASSUME
-// Use the provided definition.
-#elif defined(__CUDACC__) && defined(__CUDA_ARCH__)
-#define QS_ASSUME(condition) do { if (!(condition)) __builtin_unreachable(); } while (0)
-#elif QS_HAS_BUILTIN(__builtin_assume) || QS_GCC_VERSION >= 900 || defined(__NVCOMPILER)
-#define QS_ASSUME(condition) __builtin_assume(condition)
-#elif QS_MSVC_VERSION || defined(__INTEL_COMPILER) || defined(__INTEL_LLVM_COMPILER)
-#define QS_ASSUME(condition) __assume(condition)
-#elif defined(__cpp_lib_assume)
-#include <utility>
-#define QS_ASSUME(condition) std::assume(condition)
-#else
-#define QS_ASSUME(condition) ((QS_NAMESPACE::intl::ignore_unused)(condition))
-#endif
-// clang-format on
-
-
-#ifdef QS_VERIFY
-// Use the provided definition.
-#else
-#define QS_VERIFY(cond, msg) QS_ASSERT(cond, msg)
-#endif
-
-
-QS_NAMESPACE_BEGIN
-
-
-namespace config
-{
-    QS_NORETURN QS_INLINE QS_CONSTEXPR17 void assert_fail(char const* file, int line, char const* message)
-    {
-        std::fprintf(stderr, "[%s:%d] assert_fail: %s\n", file, line, message);
-        std::terminate();
-    }
-} // namespace config
-
-namespace intl
-{
     template<class... Args>
     struct make_void
     {
         using type = void;
     };
+
+    template<template<class...> class Fn, class... Args, class = Fn<Args...>>
+    static constexpr auto is_valid_expansion_impl(int) -> std::true_type;
+    template<template<class...> class, class...>
+    static constexpr auto is_valid_expansion_impl(...) -> std::false_type;
+
+
 } // namespace intl
+
+
+enum class contract_violation_mode
+{
+    ignore    = 0,
+    exception = 1,
+    terminate = 2
+};
+
+template<contract_violation_mode Mode>
+struct contract_violation;
+
+template<>
+struct contract_violation<contract_violation_mode::ignore>
+{
+    QS_ALWAYS_INLINE static QS_CONSTEXPR17 void fail(char const*, int, char const*) noexcept {}
+};
+template<>
+struct contract_violation<contract_violation_mode::exception>
+{
+    QS_NORETURN QS_ALWAYS_INLINE static void fail(char const* file, int line, char const* msg)
+    {
+        intl::ignore_unused(file, line);
+        throw std::logic_error(msg);
+    }
+};
+template<>
+struct contract_violation<contract_violation_mode::terminate>
+{
+    QS_NORETURN QS_ALWAYS_INLINE static QS_CONSTEXPR17 void fail(char const* file, int line, char const* msg) noexcept
+    {
+        std::fprintf(stderr, "[%s:%d] assert_fail: %s\n", file, line, msg);
+        std::abort();
+    }
+};
+
+namespace config
+{
+    QS_INLINE_VAR static QS_CONSTEXPR11 unsigned cpp_std_version = (QS_STD_VERSION);
+    QS_INLINE_VAR static QS_CONSTEXPR11 unsigned cache_line_size = (QS_CACHELINE_SIZE);
+    QS_INLINE_VAR static QS_CONSTEXPR11 bool     has_exceptions  = (QS_EXCEPTIONS == 1);
+    QS_INLINE_VAR static QS_CONSTEXPR11 bool     debug_mode      = (QS_DEBUG == 1);
+
+    // QS_INLINE_VAR static QS_CONSTEXPR11 contract_violation_mode contract_violation_mode =
+    //     has_exceptions ? contract_violation_mode::exception : contract_violation_mode::terminate;
+
+    QS_INLINE_VAR static QS_CONSTEXPR11 contract_violation_mode contract_violation_mode =
+        contract_violation_mode::terminate;
+} // namespace config
+
 
 
 template<class... Args>
@@ -434,13 +473,6 @@ struct decay : std::decay<T>
 template<class T>
 using decay_t = typename std::decay<T>::type;
 
-namespace intl
-{
-    template<template<class...> class Fn, class... Args, class = Fn<Args...>>
-    static constexpr auto is_valid_expansion_impl(int) -> std::true_type;
-    template<template<class...> class, class...>
-    static constexpr auto is_valid_expansion_impl(...) -> std::false_type;
-} // namespace intl
 
 template<template<class...> class Fn, class... Args>
 using is_valid_expansion = decltype(intl::is_valid_expansion_impl<Fn, Args...>(0));
@@ -475,6 +507,9 @@ struct type_identity
 };
 template<class T>
 using type_identity_t = typename type_identity<T>::type;
+
+template<class... Ts>
+using common_type_t = typename std::common_type<Ts...>::type;
 
 
 template<class... Args>
@@ -519,6 +554,122 @@ QS_INLINE QS_CONSTEXPR17 bool is_constant_evaluated(bool const default_value = f
     return default_value;
 #endif
 }
+
+
+// -----------------------------------------------------------------------------
+// size, data, empty, ssize
+// -----------------------------------------------------------------------------
+
+// std::data
+template<class C>
+constexpr auto data(C& c) noexcept(noexcept(c.data())) -> decltype(c.data())
+{
+    return c.data();
+}
+template<class C>
+constexpr auto data(C const& c) noexcept(noexcept(c.data())) -> decltype(c.data())
+{
+    return c.data();
+}
+template<class T, std::size_t N>
+constexpr T* data(T (&array)[N]) noexcept
+{
+    return array;
+}
+template<class T>
+constexpr T const* data(std::initializer_list<T> il) noexcept
+{
+    return il.begin();
+}
+
+// std::size
+template<class C>
+constexpr auto size(C const& c) -> decltype(c.size())
+{
+    return c.size();
+}
+template<class T, size_t N>
+constexpr size_t size(T (&)[N]) noexcept
+{
+    return N;
+}
+
+// std::empty
+template<class C>
+QS_NODISCARD constexpr auto empty(C const& c) -> decltype(c.empty())
+{
+    return c.empty();
+}
+template<class T, size_t N>
+QS_NODISCARD constexpr bool empty(const T (&array)[N]) noexcept
+{
+    intl::ignore_unused(array);
+    return false;
+}
+template<class T>
+QS_NODISCARD constexpr bool empty(std::initializer_list<T> il) noexcept
+{
+    return il.size() == 0;
+}
+
+// std::ssize
+template<class C>
+constexpr auto ssize(C const& c) -> common_type_t<ptrdiff_t, typename std::make_signed<decltype(c.size())>::type>
+{
+    using R = common_type_t<ptrdiff_t, typename std::make_signed<decltype(c.size())>::type>;
+    return static_cast<R>(c.size());
+}
+template<class T, ptrdiff_t N>
+constexpr ptrdiff_t ssize(const T (&array)[N]) noexcept
+{
+    intl::ignore_unused(array);
+    return N;
+}
+
+
+// -----------------------------------------------------------------------------
+// Assertions and Contracts
+// -----------------------------------------------------------------------------
+
+
+QS_INLINE_VAR static QS_CONSTEXPR11 bool is_nothrow_contract_violation =
+    noexcept(contract_violation<config::contract_violation_mode>::fail("", 0, ""));
+
+
+#ifdef QS_ASSERT
+// Use the provided definition.
+#elif !QS_DEBUG
+#define QS_ASSERT(condition, message) (QS_NAMESPACE::intl::ignore_unused)((condition), (message)) // Avoid -Wempty-body.
+#else
+#define QS_ASSERT(condition, message)                                                                                  \
+    (QS_LIKELY(condition) ? ((QS_NAMESPACE::intl::ignore_unused)(message))                                             \
+                          : ((QS_NAMESPACE::contract_violation<QS_NAMESPACE::config::contract_violation_mode>::fail)(  \
+                                __FILE_NAME__, __LINE__, message)))
+#endif
+
+// clang-format off
+#ifdef QS_ASSUME
+// Use the provided definition.
+#elif defined(__CUDACC__) && defined(__CUDA_ARCH__)
+#define QS_ASSUME(condition) do { if (!(condition)) __builtin_unreachable(); } while (0)
+#elif QS_HAS_BUILTIN(__builtin_assume) || QS_GCC_VERSION >= 900 || defined(__NVCOMPILER)
+#define QS_ASSUME(condition) __builtin_assume(condition)
+#elif QS_MSVC_VERSION || defined(__INTEL_COMPILER) || defined(__INTEL_LLVM_COMPILER)
+#define QS_ASSUME(condition) __assume(condition)
+#elif defined(__cpp_lib_assume)
+#include <utility>
+#define QS_ASSUME(condition) std::assume(condition)
+#else
+#define QS_ASSUME(condition) ((QS_NAMESPACE::intl::ignore_unused)(condition))
+#endif
+// clang-format on
+
+
+#ifdef QS_VERIFY
+// Use the provided definition.
+#else
+#define QS_VERIFY(cond, msg) QS_ASSERT(cond, msg)
+#endif
 
 
 QS_NAMESPACE_END

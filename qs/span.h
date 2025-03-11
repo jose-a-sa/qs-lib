@@ -7,6 +7,7 @@
 #include <qs/traits/ranges.h>
 
 #include <stdexcept>
+#include <type_traits>
 
 
 QS_NAMESPACE_BEGIN
@@ -63,15 +64,13 @@ namespace intl
 
     template<class Rng, class Elem>
     struct is_span_compatible_range<Rng, Elem, void_t<range_reference_t<Rng>>>
-        : std::bool_constant<is_contiguous_range<Rng>::value && is_sized_range<Rng>::value &&
-                             (is_borrowed_range<Rng>::value || std::is_const<Rng>::value) &&
-                             !(is_span<Rng>::value || is_std_array<Rng>::value || std::is_array<Rng>::value) &&
-                             is_span_convertible<remove_reference_t<range_reference_t<Rng>>, Elem>::value>
+        : std::integral_constant<bool,
+                                 is_contiguous_range<Rng>::value && is_sized_range<Rng>::value &&
+                                     (is_borrowed_range<Rng>::value || std::is_const<Rng>::value) &&
+                                     !(is_span<Rng>::value || is_std_array<Rng>::value || std::is_array<Rng>::value) &&
+                                     is_span_convertible<remove_reference_t<range_reference_t<Rng>>, Elem>::value>
     {};
-
-    auto res = is_contiguous_iterator<byte const*>::value;
 } // namespace intl
-
 
 
 // span implementation for fixed-size
@@ -100,6 +99,7 @@ public:
     QS_CONSTEXPR11 span() noexcept
         : data_{nullptr} {};
 
+    // FIXME: in release mode, temporary initializer_list may leave the span with an undefined state
     template<class U = element_type, enable_if_t<std::is_const<U>::value, int> = 0>
     QS_CONSTEXPR11 explicit span(std::initializer_list<value_type> il)
         : data_{il.begin()}
@@ -112,7 +112,7 @@ public:
 
     template<class Iterator, enable_if_t<intl::is_span_compatible_iterator<Iterator, element_type>::value, int> = 0>
     QS_CONSTEXPR11 explicit span(Iterator first, size_type count)
-        : data_{first.operator->()}
+        : data_{to_address(first)}
     {
         QS_VERIFY(Extent == dynamic_extent || Extent == count, "size mismatch in span's constructor (iterator, len)");
     }
@@ -122,32 +122,32 @@ public:
                              intl::is_span_compatible_sentinel<Sentinel, Iterator>::value,
                          int> = 0>
     QS_CONSTEXPR11 explicit span(Iterator first, Sentinel last)
-        : data_(first.operator->())
+        : data_(to_address(first))
     {
         // [span.cons]/10
         // Throws: When and what last - first throws.
-        [[maybe_unused]] auto dist = last - first;
+        QS_MAYBE_UNUSED auto dist = last - first;
         QS_VERIFY(dist >= 0, "invalid range in span's constructor (iterator, sentinel)");
         QS_VERIFY(Extent == dynamic_extent || Extent == dist,
                   "invalid range in span's constructor (iterator, sentinel): last - first != extent");
     }
 
-    QS_CONSTEXPR11 span(type_identity_t<element_type> (&arr)[extent]) noexcept
+    QS_CONSTEXPR11 span(type_identity_t<T> (&arr)[Extent]) noexcept
         : data_{arr}
     {}
 
     template<class V, enable_if_t<intl::is_span_convertible<V, element_type>::value, int> = 0>
-    QS_CONSTEXPR11 span(std::array<V, extent>& arr) noexcept
+    QS_CONSTEXPR11 span(std::array<V, Extent>& arr) noexcept
         : data_{arr.data()}
     {}
 
     template<class V, enable_if_t<intl::is_span_convertible<V const, element_type>::value, int> = 0>
-    QS_CONSTEXPR11 span(std::array<V, extent> const& arr) noexcept
+    QS_CONSTEXPR11 span(std::array<V, Extent> const& arr) noexcept
         : data_{arr.data()}
     {}
 
     template<class V, enable_if_t<intl::is_span_convertible<V, element_type>::value, int> = 0>
-    QS_CONSTEXPR11 span(span<V, extent> const& other)
+    QS_CONSTEXPR11 span(span<V, Extent> const& other)
         : data_{other.data()}
     {}
 
@@ -155,35 +155,35 @@ public:
     QS_CONSTEXPR11 explicit span(span<V, dynamic_extent> const& other) noexcept
         : data_{other.data()}
     {
-        QS_VERIFY(extent == other.size(), "size mismatch in span's constructor (other span)");
+        QS_VERIFY(Extent == other.size(), "size mismatch in span's constructor (other span)");
     }
 
-    template<class Rng, enable_if_t<intl::is_span_compatible_range<Rng, element_type>::value, int> = 0>
+    template<class Rng, enable_if_t<intl::is_span_compatible_range<Rng, T>::value, int> = 0>
     QS_CONSTEXPR11 explicit span(Rng&& r)
-        : data_{std::data(r)}
+        : data_{qs::data(r)}
     {
-        QS_VERIFY(extent == dynamic_extent || extent == std::size(r), "size mismatch in span's constructor (range)");
+        QS_VERIFY(Extent == dynamic_extent || Extent == qs::size(r), "size mismatch in span's constructor (range)");
     }
 
     // [span.obs], span observers
-    QS_CONSTEXPR11 size_type size() const noexcept { return extent; }
-    QS_CONSTEXPR11 size_type size_bytes() const noexcept { return extent * sizeof(element_type); }
+    QS_CONSTEXPR11 size_type size() const noexcept { return Extent; }
+    QS_CONSTEXPR11 size_type size_bytes() const noexcept { return Extent * sizeof(element_type); }
     QS_CONSTEXPR11 bool      empty() const noexcept { return size() == 0; }
 
     // [span.elem], span element access //
-    QS_CONSTEXPR11 reference operator[](size_type index) const
+    QS_CONSTEXPR11 reference operator[](size_type index) const noexcept(is_nothrow_contract_violation)
     {
         return QS_VERIFY(index < size(), "span<T, N>::operator[](index): index out of range"), this->data_[index];
     };
-    QS_CONSTEXPR11 reference at(size_type index) const
+    QS_CONSTEXPR11 reference at(size_type index) const noexcept(is_nothrow_contract_violation)
     {
         return (index >= size()) ? (throw_out_of_range_("span"), this->data_[0]) : this->data_[index];
     }
-    QS_CONSTEXPR11 reference front() const
+    QS_CONSTEXPR11 reference front() const noexcept(is_nothrow_contract_violation)
     {
         return QS_VERIFY(!empty(), "span<T, N>::front() called on empty span"), this->data_[0];
     }
-    QS_CONSTEXPR11 reference back() const
+    QS_CONSTEXPR11 reference back() const noexcept(is_nothrow_contract_violation)
     {
         return QS_VERIFY(!empty(), "span<T, N>::back() called on empty span"), this->data_[size() - 1];
     }
@@ -206,7 +206,7 @@ public:
         static_assert(Count <= extent, "span<T, N>::first<Count>(): Count out of range");
         return span<T, Count>{data(), Count};
     }
-    QS_CONSTEXPR11 span<T, dynamic_extent> first(size_type count) const noexcept
+    QS_CONSTEXPR11 span<T, dynamic_extent> first(size_type count) const noexcept(is_nothrow_contract_violation)
     {
         return QS_VERIFY(count <= size(), "span<T, N>::first(count): count out of range"),
                span<T, dynamic_extent>{data(), count};
@@ -218,7 +218,7 @@ public:
         static_assert(Count <= extent, "span<T, N>::last<Count>(): Count out of range");
         return span<T, Count>{data() + size() - Count, Count};
     }
-    QS_CONSTEXPR11 span<T, dynamic_extent> last(size_type count) const noexcept
+    QS_CONSTEXPR11 span<T, dynamic_extent> last(size_type count) const noexcept(is_nothrow_contract_violation)
     {
         return QS_VERIFY(count <= size(), "span<T, N>::last(count): count out of range"),
                span<T, dynamic_extent>{data() + size() - count, count};
@@ -235,8 +235,8 @@ public:
         return return_t{data() + Offset, Count != dynamic_extent ? Count : extent - Offset};
     }
 
-    QS_CONSTEXPR11 auto subspan(size_type offset, size_type count = dynamic_extent) const noexcept
-        -> span<T, dynamic_extent>
+    QS_CONSTEXPR11 auto subspan(size_type offset, size_type count = dynamic_extent) const
+        noexcept(is_nothrow_contract_violation) -> span<T, dynamic_extent>
     {
         return QS_VERIFY(offset <= size(), "span<T, N>::subspan(offset, count): offset out of range"),
                (count == dynamic_extent
@@ -266,8 +266,6 @@ private:
 };
 
 
-
-
 // span implementation for dynamic-size
 
 template<class T>
@@ -293,6 +291,7 @@ public:
         : data_{nullptr},
           size_{0} {};
 
+    // FIXME: in release mode, temporary initializer_list may leave the span with an undefined state
     template<class U = element_type, enable_if_t<std::is_const<U>::value, int> = 0>
     QS_CONSTEXPR11 explicit span(std::initializer_list<value_type> il)
         : data_{il.begin()},
@@ -304,7 +303,7 @@ public:
 
     template<class Iterator, enable_if_t<intl::is_span_compatible_iterator<Iterator, element_type>::value, int> = 0>
     QS_CONSTEXPR11 explicit span(Iterator first, size_type count)
-        : data_{first.operator->()},
+        : data_{to_address(first)},
           size_{count}
     {}
 
@@ -313,7 +312,7 @@ public:
                              intl::is_span_compatible_sentinel<Sentinel, Iterator>::value,
                          int> = 0>
     QS_CONSTEXPR11 explicit span(Iterator first, Sentinel last)
-        : data_(first.operator->()),
+        : data_(to_address(first)),
           size_(last - first)
     {
         QS_VERIFY(last - first >= 0, "invalid range in span's constructor (iterator, sentinel)");
@@ -346,8 +345,8 @@ public:
 
     template<class Rng, enable_if_t<intl::is_span_compatible_range<Rng, element_type>::value, int> = 0>
     QS_CONSTEXPR11 explicit span(Rng&& r)
-        : data_(std::data(r)),
-          size_{std::size(r)}
+        : data_(qs::data(r)),
+          size_{qs::size(r)}
     {}
 
 
@@ -357,19 +356,19 @@ public:
     QS_CONSTEXPR11 bool      empty() const noexcept { return size() == 0; }
 
     // [span.elem], span element access //
-    QS_CONSTEXPR11 reference operator[](size_type index) const
+    QS_CONSTEXPR11 reference operator[](size_type index) const noexcept(is_nothrow_contract_violation)
     {
         return QS_VERIFY(index < size(), "span<T>::operator[](index): index out of range"), this->data_[index];
     };
-    QS_CONSTEXPR11 reference at(size_type index) const
+    QS_CONSTEXPR11 reference at(size_type index) const noexcept(is_nothrow_contract_violation)
     {
         return index >= size() ? (throw_out_of_range_("span"), this->data_[0]) : this->data_[index];
     }
-    QS_CONSTEXPR11 reference front() const
+    QS_CONSTEXPR11 reference front() const noexcept(is_nothrow_contract_violation)
     {
         return QS_VERIFY(!empty(), "span<T>::front() called on empty span"), this->data_[0];
     }
-    QS_CONSTEXPR11 reference back() const
+    QS_CONSTEXPR11 reference back() const noexcept(is_nothrow_contract_violation)
     {
         return QS_VERIFY(!empty(), "span<T>::back() called on empty span"), this->data_[size() - 1];
     }
@@ -382,37 +381,36 @@ public:
     QS_CONSTEXPR11 const_iterator         cend() const noexcept { return data() + size(); };
     QS_CONSTEXPR11 reverse_iterator       rbegin() const noexcept { return reverse_iterator(end()); };
     QS_CONSTEXPR11 reverse_iterator       rend() const noexcept { return reverse_iterator(begin()); };
-    QS_CONSTEXPR11 const_reverse_iterator crbegin() const noexcept { return const_reverse_iterator(end()); };
-    QS_CONSTEXPR11 const_reverse_iterator crend() const noexcept { return const_reverse_iterator(begin()); }
+    QS_CONSTEXPR11 const_reverse_iterator crbegin() const noexcept { return const_reverse_iterator(cend()); };
+    QS_CONSTEXPR11 const_reverse_iterator crend() const noexcept { return const_reverse_iterator(cbegin()); }
 
 
     // [span.sub], span subviews
     template<size_t Count>
-    QS_CONSTEXPR11 span<T, Count> first() const noexcept
+    QS_CONSTEXPR11 span<T, Count> first() const noexcept(is_nothrow_contract_violation)
     {
-        return QS_VERIFY(Count <= size(), "span<T>::last(count): count out of range"),
-               span<element_type, Count>{data(), Count};
+        return QS_VERIFY(Count <= size(), "span<T>::first<Count>(): Count out of range"), span<T, Count>{data(), Count};
     }
-    QS_CONSTEXPR11 span<T, dynamic_extent> first(size_type count) const noexcept
+    QS_CONSTEXPR11 span<T, dynamic_extent> first(size_type count) const noexcept(is_nothrow_contract_violation)
     {
         return QS_VERIFY(count <= size(), "span<T>::first(count): count out of range"),
                span<T, dynamic_extent>{data(), count};
     }
 
     template<size_t Count>
-    QS_CONSTEXPR11 span<T, Count> last() const noexcept
+    QS_CONSTEXPR11 span<T, Count> last() const noexcept(is_nothrow_contract_violation)
     {
-        return QS_VERIFY(Count <= size(), "span<T>::last(count): count out of range"),
+        return QS_VERIFY(Count <= size(), "span<T>::last<Count>(): Count out of range"),
                span<T, Count>{data() + size() - Count, Count};
     }
-    QS_CONSTEXPR11 span<T, dynamic_extent> last(size_type count) const noexcept
+    QS_CONSTEXPR11 span<T, dynamic_extent> last(size_type count) const noexcept(is_nothrow_contract_violation)
     {
         return QS_VERIFY(count <= size(), "span<T>::last(count): count out of range"),
                span<T, dynamic_extent>{data() + size() - count, count};
     }
 
     template<size_t Offset, size_t Count = dynamic_extent>
-    QS_CONSTEXPR11 auto subspan() const noexcept -> span<T, Count>
+    QS_CONSTEXPR11 auto subspan() const noexcept(is_nothrow_contract_violation) -> span<T, Count>
     {
         return QS_VERIFY(Offset <= size(), "span<T>::subspan<Offset, Count>(): Offset out of range"),
                QS_VERIFY(Count == dynamic_extent || Count <= size() - Offset,
@@ -420,13 +418,13 @@ public:
                span<T, Count>{data() + Offset, Count == dynamic_extent ? size() - Offset : Count};
     }
 
-    QS_CONSTEXPR11 auto subspan(size_type offset, size_type count = dynamic_extent) const noexcept
-        -> span<T, dynamic_extent>
+    QS_CONSTEXPR11 auto subspan(size_type offset, size_type count = dynamic_extent) const
+        noexcept(is_nothrow_contract_violation) -> span<T, dynamic_extent>
     {
-        return QS_VERIFY(offset <= size(), "span<T, N>::subspan(offset, count): offset out of range"),
+        return QS_VERIFY(offset <= size(), "span<T>::subspan(offset, count): offset out of range"),
                (count == dynamic_extent
                     ? span<T, dynamic_extent>{data() + offset, size() - offset}
-                    : (QS_VERIFY(count <= size() - offset, "span<T, N>::subspan(offset, count): count out of range"),
+                    : (QS_VERIFY(count <= size() - offset, "span<T>::subspan(offset, count): count out of range"),
                        span<T, dynamic_extent>{data() + offset, count}));
     }
 
