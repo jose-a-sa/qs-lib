@@ -1,15 +1,19 @@
 #ifndef QS_TRAITS_ITERATOR_H
 #define QS_TRAITS_ITERATOR_H
 
-#include "qs/memory.h"
-#include <__memory/pointer_traits.h>
-#include <memory>
 #include <qs/config.h>
 #include <qs/meta.h>
 #include <qs/traits/base.h>
 
+#include <array>
 #include <iterator>
+#include <string>
 #include <type_traits>
+#include <vector>
+
+#if defined(__cpp_lib_string_view)
+#include <string_view>
+#endif
 
 
 QS_NAMESPACE_BEGIN
@@ -65,10 +69,10 @@ QS_CONSTEXPR11 T* to_address(T* p) noexcept
 }
 
 // to_address overload for fancy pointers which must have operator->() overload
-template<class Ptr, enable_if_t<meta::test::op_star<Ptr const&>::value && std::is_class<Ptr>::value, int> = 0>
-QS_CONSTEXPR11 auto to_address(Ptr const& p) noexcept -> decay_t<decltype(to_address(p.operator->()))>
+template<class Ptr, enable_if_t<std::is_class<Ptr>::value && meta::test::op_arrow<Ptr const&>::value, int> = 0>
+QS_CONSTEXPR11 auto to_address(Ptr const& p) noexcept -> decay_t<decltype(qs::to_address(p.operator->()))>
 {
-    return to_address(p.operator->());
+    return qs::to_address(p.operator->());
 }
 
 // -----------------------------------------------------------------------------
@@ -119,8 +123,7 @@ class is_indirectly_writable
 {
     template<class O, class T>
     static auto test_write(int)
-        -> decltype(*std::declval<O&>() = std::declval<T&&>(), 
-                    *std::declval<O&&>() = std::declval<T&&>(),
+        -> decltype(*std::declval<O&>() = std::declval<T&&>(), *std::declval<O&&>() = std::declval<T&&>(),
                     const_cast<const iter_reference_t<O>&&>(*std::declval<O&>())  = std::declval<T&&>(),
                     const_cast<const iter_reference_t<O>&&>(*std::declval<O&&>()) = std::declval<T&&>(),
                     std::true_type{});
@@ -292,19 +295,67 @@ struct is_random_access_iterator_tagged
 // [iterator.concept.contiguous]
 // -----------------------------------------------------------------------------
 
-template<class Iter>
-class is_contiguous_iterator
-{
-    template<class I, class Value = iter_value_t<I>, class Ref = iter_reference_t<I>,
-             class Addr = decltype(to_address(std::declval<I const&>()))>
-    static auto test(int) -> conjunction<std::is_lvalue_reference<Ref>, is_same_as<Value, remove_cvref_t<Ref>>,
-                                         is_same_as<Addr, add_pointer_t<Ref>>>;
-    template<class>
-    static auto test(...) -> std::false_type;
 
-public:
-    static constexpr bool value = is_random_access_iterator<Iter>::value && decltype(test<Iter>(0))::value;
-};
+namespace intl
+{
+    // HACK: workaround for deque iterators, which are flagged as contiguous iterators by this trait, however they are
+    //  random access iterators. to_address() also resolves, but does not obey the property
+    //  to_address(it) + n == to_address(it + n), if n is larger than the deques block size.
+    //  This fix checks if Iter can be converted to deque<iter_value_t<Iter>>::iterator or variants.
+    //  The std::reverse_iterator also fails the contiguous iterator test as supposed.
+
+    template<class Iter>
+    class is_std_contiguous_iterator
+    {
+        template<class I, class V = iter_value_t<I>, class C = std::vector<V>>
+        static auto test_vector(int) -> is_convertible_to<I, typename C::const_iterator>;
+        template<class>
+        static auto test_vector(...) -> std::false_type;
+
+        template<class I, class V = iter_value_t<I>, class C = std::array<V, 1>>
+        static auto test_array(int) -> is_convertible_to<I, typename C::const_iterator>;
+        template<class>
+        static auto test_array(...) -> std::false_type;
+
+        template<class I, class V = iter_value_t<I>,
+                 class Enable = enable_if_t<!std::is_array<V>::value && std::is_standard_layout<V>::value &&
+                                            std::is_trivial<V>::value>,
+                 class C      = std::basic_string<V>>
+        static auto test_string(int) -> is_convertible_to<I, typename C::const_iterator>;
+        template<class>
+        static auto test_string(...) -> std::false_type;
+
+#if defined(__cpp_lib_string_view)
+
+        template<class I, class V = iter_value_t<I>,
+                 class Enable = enable_if_t<!std::is_array<V>::value && std::is_standard_layout<V>::value &&
+                                            std::is_trivial<V>::value>,
+                 class C      = std::basic_string<V>>
+        static auto test_string_view(int) -> is_convertible_to<I, typename C::const_iterator>;
+        template<class>
+        static auto test_string_view(...) -> std::false_type;
+
+    public:
+        static constexpr bool value =
+            disjunction<decltype(test_vector<Iter>(0)), decltype(test_array<Iter>(0)), decltype(test_string<Iter>(0)),
+                        decltype(test_string_view<Iter>(0))>::value;
+#else
+    public:
+        static constexpr bool value = disjunction<decltype(test_vector<Iter>(0)), decltype(test_array<Iter>(0)),
+                                                  decltype(test_string<Iter>(0))>::value;
+#endif
+    };
+
+} // namespace intl
+
+
+template<class Iter>
+struct is_contiguous_iterator : intl::is_std_contiguous_iterator<Iter>
+{};
+
+template<class T>
+struct is_contiguous_iterator<T*> : std::true_type
+{};
 
 
 QS_NAMESPACE_END

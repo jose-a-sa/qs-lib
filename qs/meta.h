@@ -193,7 +193,7 @@ namespace meta
         template<class T, class... Args>
         class placement_new
         {
-            template<class U, class Res = decltype(::new(std::declval<void*>()) T(std::declval<Args>()...))>
+            template<class U, class Res = decltype(::new(std::declval<void*>()) U(std::declval<Args>()...))>
             static auto test(int) -> std::true_type;
             template<class>
             static auto test(...) -> std::false_type;
@@ -210,7 +210,7 @@ namespace meta
         template<class Lhs, class Rhs, class Tester = meta::constant_fn<std::true_type>>
         class op_subscript
         {
-            template<class L, class R, class Res = decltype(std::declval<Lhs>()[std::declval<Rhs>()])>
+            template<class L, class R, class Res = decltype(std::declval<L>()[std::declval<R>()])>
             static auto test(int) -> meta::invoke<Tester, Res>;
             template<class, class>
             static auto test(...) -> std::false_type;
@@ -348,7 +348,7 @@ namespace meta
         template<class Lhs, class Rhs, class Tester = meta::constant_fn<std::true_type>>
         class op_lesser
         {
-            template<class L, class R, class Res = decltype(std::declval<Lhs>() < std::declval<Rhs>())>
+            template<class L, class R, class Res = decltype(std::declval<L>() < std::declval<R>())>
             static auto test(int) -> meta::invoke<Tester, Res>;
             template<class, class>
             static auto test(...) -> std::false_type;
@@ -361,7 +361,7 @@ namespace meta
         template<class Lhs, class Rhs, class Tester = meta::constant_fn<std::true_type>>
         class op_lesser_equal
         {
-            template<class L, class R, class Res = decltype(std::declval<Lhs>() <= std::declval<Rhs>())>
+            template<class L, class R, class Res = decltype(std::declval<L>() <= std::declval<R>())>
             static auto test(int) -> meta::invoke<Tester, Res>;
             template<class, class>
             static auto test(...) -> std::false_type;
@@ -374,7 +374,7 @@ namespace meta
         template<class Lhs, class Rhs, class Tester = meta::constant_fn<std::true_type>>
         class op_greater
         {
-            template<class L, class R, class Res = decltype(std::declval<Lhs>() > std::declval<Rhs>())>
+            template<class L, class R, class Res = decltype(std::declval<L>() > std::declval<R>())>
             static auto test(int) -> meta::invoke<Tester, Res>;
             template<class, class>
             static auto test(...) -> std::false_type;
@@ -387,7 +387,7 @@ namespace meta
         template<class Lhs, class Rhs, class Tester = meta::constant_fn<std::true_type>>
         class op_greater_equal
         {
-            template<class L, class R, class Res = decltype(std::declval<Lhs>() >= std::declval<Rhs>())>
+            template<class L, class R, class Res = decltype(std::declval<L>() >= std::declval<R>())>
             static auto test(int) -> meta::invoke<Tester, Res>;
             template<class, class>
             static auto test(...) -> std::false_type;
@@ -404,7 +404,7 @@ namespace meta
         template<class Lhs, class Rhs, class Tester = meta::constant_fn<std::true_type>>
         class op_plus
         {
-            template<class L, class R, class Res = decltype(std::declval<Lhs>() + std::declval<Rhs>())>
+            template<class L, class R, class Res = decltype(std::declval<L>() + std::declval<R>())>
             static auto test(int) -> meta::invoke<Tester, Res>;
             template<class, class>
             static auto test(...) -> std::false_type;
@@ -417,7 +417,7 @@ namespace meta
         template<class Lhs, class Rhs, class Tester = meta::constant_fn<std::true_type>>
         class op_minus
         {
-            template<class L, class R, class Res = decltype(std::declval<Lhs>() - std::declval<Rhs>())>
+            template<class L, class R, class Res = decltype(std::declval<L>() - std::declval<R>())>
             static auto test(int) -> meta::invoke<Tester, Res>;
             template<class, class>
             static auto test(...) -> std::false_type;
@@ -446,7 +446,7 @@ namespace meta
         template<class Lhs, class Rhs, class Tester = meta::constant_fn<std::true_type>>
         class op_plus_assign
         {
-            template<class L, class R, class Res = decltype(std::declval<Lhs>() += std::declval<Rhs>())>
+            template<class L, class R, class Res = decltype(std::declval<L>() += std::declval<R>())>
             static auto test(int) -> meta::invoke<Tester, Res>;
             template<class, class>
             static auto test(...) -> std::false_type;
@@ -459,7 +459,7 @@ namespace meta
         template<class Lhs, class Rhs, class Tester = meta::constant_fn<std::true_type>>
         class op_minus_assign
         {
-            template<class L, class R, class Res = decltype(std::declval<Lhs>() -= std::declval<Rhs>())>
+            template<class L, class R, class Res = decltype(std::declval<L>() -= std::declval<R>())>
             static auto test(int) -> meta::invoke<Tester, Res>;
             template<class, class>
             static auto test(...) -> std::false_type;

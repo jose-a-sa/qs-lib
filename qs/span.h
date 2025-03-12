@@ -99,7 +99,7 @@ public:
     QS_CONSTEXPR11 span() noexcept
         : data_{nullptr} {};
 
-    // FIXME: in release mode, temporary initializer_list may leave the span with an undefined state
+    // NOTE: in optimized builds, temporary initializer_list leaves the span with dangling pointer (undefined state)
     template<class U = element_type, enable_if_t<std::is_const<U>::value, int> = 0>
     QS_CONSTEXPR11 explicit span(std::initializer_list<value_type> il)
         : data_{il.begin()}
@@ -122,7 +122,7 @@ public:
                              intl::is_span_compatible_sentinel<Sentinel, Iterator>::value,
                          int> = 0>
     QS_CONSTEXPR11 explicit span(Iterator first, Sentinel last)
-        : data_(to_address(first))
+        : data_(qs::to_address(first))
     {
         // [span.cons]/10
         // Throws: When and what last - first throws.
@@ -291,7 +291,7 @@ public:
         : data_{nullptr},
           size_{0} {};
 
-    // FIXME: in release mode, temporary initializer_list may leave the span with an undefined state
+    // NOTE: in optimized builds, temporary initializer_list leaves the span with dangling pointer (undefined state)
     template<class U = element_type, enable_if_t<std::is_const<U>::value, int> = 0>
     QS_CONSTEXPR11 explicit span(std::initializer_list<value_type> il)
         : data_{il.begin()},

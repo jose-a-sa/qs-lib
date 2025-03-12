@@ -1,10 +1,10 @@
-#include "test/test_header.h"
+#include <memory>
+#include <test/test_header.h>
 
-#include <initializer_list>
 #include <qs/config.h>
 #include <qs/span.h>
-#include "gmock/gmock.h"
 
+#include <deque>
 #include <vector>
 
 
@@ -22,7 +22,7 @@ namespace test
 
         // EXPECT_THROW((span<int, 3>((int*)nullptr, 1)), std::logic_error);
         // EXPECT_THROW((span<int, 3>{vec.data(), 1}), std::logic_error);
-        
+
         span<int, 3> s{vec};
         EXPECT_THAT(s, testing::Pointwise(testing::Eq(), {1, 2, 3}));
     }
@@ -46,7 +46,8 @@ namespace test
 
     TEST(Span, First)
     {
-        auto s = span<int const, 3>({1, 2, 3});
+        std::vector<int> v = {1, 2, 3};
+        auto             s = span<int const, 3>(v);
 
         auto matcher1 = testing::HasSubstr("span<T, N>::first(count): count out of range");
         EXPECT_DEBUG_DEATH(({ s.first(-1); }), matcher1);
@@ -67,7 +68,8 @@ namespace test
 
     TEST(Span, Last)
     {
-        auto s = span<int const, 3>({1, 2, 3});
+        std::vector<int> v = {1, 2, 3};
+        auto             s = span<int const, 3>(v);
 
         auto matcher1 = testing::HasSubstr("span<T, N>::last(count): count out of range");
         EXPECT_DEBUG_DEATH(({ s.last(-1); }), matcher1);
@@ -88,8 +90,8 @@ namespace test
 
     TEST(Span, Subspan_Offset)
     {
-        auto il = {1, 2, 3, 4, 5};
-        auto s = span<int const, 5>(il);
+        std::vector<int> v = {1, 2, 3, 4, 5};
+        auto             s = span<int const, 3>(v);
 
         auto matcher1 = testing::HasSubstr("span<T, N>::subspan(offset, count): offset out of range");
         EXPECT_DEBUG_DEATH(({ s.subspan(-1); }), matcher1);
@@ -98,7 +100,8 @@ namespace test
         std::vector<int> vec{1, 2, 3, 4, 5};
         auto             s2 = span(vec);
 
-        EXPECT_DEBUG_DEATH(({ s2.subspan<6>(); }), testing::HasSubstr("span<T>::subspan<Offset, Count>(): Offset out of range"));
+        EXPECT_DEBUG_DEATH(({ s2.subspan<6>(); }),
+                           testing::HasSubstr("span<T>::subspan<Offset, Count>(): Offset out of range"));
         auto matcher2 = testing::HasSubstr("span<T>::subspan(offset, count): offset out of range");
         EXPECT_DEBUG_DEATH(({ s2.subspan(-1); }), matcher2);
         EXPECT_DEBUG_DEATH(({ s2.subspan(6); }), matcher2);
@@ -110,26 +113,27 @@ namespace test
 
     TEST(Span, Subspan_OffsetAndCount)
     {
-        auto il = {1, 2, 3, 4, 5};
-        auto s = span<int const, 5>(il);
+        std::vector<int> v = {1, 2, 3, 4, 5};
+        auto             s = span<int const, 5>(v);
 
         auto matcher1 = testing::HasSubstr("span<T, N>::subspan(offset, count): count out of range");
-        EXPECT_DEBUG_DEATH(({ s.subspan(0,-2); }), matcher1);
+        EXPECT_DEBUG_DEATH(({ s.subspan(0, -2); }), matcher1);
         EXPECT_DEBUG_DEATH(({ s.subspan(0, 6); }), matcher1);
 
-        EXPECT_THAT(s.subspan(1,3), testing::Pointwise(testing::Eq(), {2, 3, 4}));
-        EXPECT_THAT(s.subspan(2,3), testing::Pointwise(testing::Eq(), {3, 4, 5}));
+        EXPECT_THAT(s.subspan(1, 3), testing::Pointwise(testing::Eq(), {2, 3, 4}));
+        EXPECT_THAT(s.subspan(2, 3), testing::Pointwise(testing::Eq(), {3, 4, 5}));
 
         std::vector<int> vec{1, 2, 3, 4, 5};
         auto             s2 = span(vec);
 
-        EXPECT_DEBUG_DEATH(({ s2.subspan<0, 6>(); }), testing::HasSubstr("span<T>::subspan<Offset, Count>(): Offset + Count out of range"));
+        EXPECT_DEBUG_DEATH(({ s2.subspan<0, 6>(); }),
+                           testing::HasSubstr("span<T>::subspan<Offset, Count>(): Offset + Count out of range"));
         auto matcher2 = testing::HasSubstr("span<T>::subspan(offset, count): count out of range");
-        EXPECT_DEBUG_DEATH(({ s2.subspan(0,-2); }), matcher2);
+        EXPECT_DEBUG_DEATH(({ s2.subspan(0, -2); }), matcher2);
         EXPECT_DEBUG_DEATH(({ s2.subspan(0, 6); }), matcher2);
 
-        EXPECT_THAT(s2.subspan(1,3), testing::Pointwise(testing::Eq(), {2, 3, 4}));
-        EXPECT_THAT(s2.subspan(2,3), testing::Pointwise(testing::Eq(), {3, 4, 5}));
+        EXPECT_THAT(s2.subspan(1, 3), testing::Pointwise(testing::Eq(), {2, 3, 4}));
+        EXPECT_THAT(s2.subspan(2, 3), testing::Pointwise(testing::Eq(), {3, 4, 5}));
 
         // EXPECT_THROW((s.subspan<0, 6>()), std::logic_error);
         // EXPECT_THROW((s.subspan(0, -2)), std::logic_error);
@@ -139,7 +143,7 @@ namespace test
     TEST(Span, OperatorSubscript)
     {
         auto il = {1, 2, 3};
-        auto s = span<int const, 3>(il);
+        auto s  = span<int const, 3>(il);
 
         auto matcher1 = testing::HasSubstr("span<T, N>::operator[](index): index out of range");
         EXPECT_DEBUG_DEATH(({ s[-2]; }), matcher1);
@@ -159,7 +163,7 @@ namespace test
         auto matcher2 = testing::HasSubstr("span<T>::operator[](index): index out of range");
         EXPECT_DEBUG_DEATH(({ s2[-2]; }), matcher2);
         EXPECT_DEBUG_DEATH(({ s2[42]; }), matcher2);
-        
+
         // EXPECT_THROW((s[-2]), std::logic_error);
         // EXPECT_THROW((s[42]), std::logic_error);
     }
@@ -180,6 +184,26 @@ namespace test
         // EXPECT_THROW((s.back()), std::logic_error);
     }
 
+    TEST(Span, InitializerList)
+    {
+        auto il = {1, 2, 3, 4, 5};
+
+        span<int const, 5> ss{il};
+        EXPECT_THAT(ss, testing::Pointwise(testing::Eq(), {1, 2, 3, 4, 5}));
+        EXPECT_THAT(ss, testing::Pointwise(testing::Eq(), {1, 2, 3, 4, 5}));
+
+        span sd{il};
+        EXPECT_THAT(sd, testing::Pointwise(testing::Eq(), {1, 2, 3, 4, 5}));
+    }
+
+    TEST(Span, InitializerListTemporary)
+    {
+        auto ss = span<int const, 5>{1, 2, 3, 4, 5};
+        EXPECT_THAT(ss, testing::Not(testing::Pointwise(testing::Eq(), {1, 2, 3, 4, 5})));
+
+        auto sd = span<int const>{1, 2, 3, 4, 5};
+        EXPECT_THAT(sd, testing::Not(testing::Pointwise(testing::Eq(), {1, 2, 3, 4, 5})));
+    }
 
 } // namespace test
 

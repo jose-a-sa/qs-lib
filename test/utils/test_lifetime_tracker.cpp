@@ -87,7 +87,7 @@ struct lc_logger_tester<MyInt, Uuid> : lc_logger_tester_base<MyInt, Uuid>
         base::log_value(self);
         fmt::print(base::template log_event_format<Cnt>(), type_name, static_cast<int>(type_name.size()),
                    type_name.data());
-        fmt::print(" -> {v: %d} \n", self.v);
+        fmt::print(" -> [v: {}]\n", self.v);
     }
 };
 
@@ -143,7 +143,7 @@ struct lc_logger_tester<std::string, Uuid> : lc_logger_tester_base<std::string, 
         base::log_value(self);
         fmt::print(base::template log_event_format<Cnt>(), type_name, static_cast<int>(type_name.size()),
                    type_name.data());
-        fmt::print(" -> \"%.*s\" \n", static_cast<int>(self.size()), self.data());
+        fmt::print(" -> {:?}\n", self);
     }
 };
 
