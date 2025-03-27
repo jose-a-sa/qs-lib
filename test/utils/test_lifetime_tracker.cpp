@@ -1,69 +1,21 @@
 #include <test/test_header.h>
 
-#include <qs/utils/lifecycle_tracker.h>
+
+#include <array>
 #include <string>
 #include <vector>
 
+
+#include <qs/utils/lifecycle_tracker.h>
+
+
+#define IGNORE_STDOUT(...)                                                                                             \
+    testing::internal::CaptureStdout();                                                                                \
+    __VA_ARGS__;                                                                                                       \
+    testing::internal::GetCapturedStdout();
+
+
 QS_NAMESPACE_BEGIN
-
-template<class T, size_t Uuid = 0>
-struct lc_logger_tester;
-
-template<class T, size_t Uuid>
-struct lc_logger_tester_base : lifecycle_default_logger<T, Uuid>
-{
-    using base = lifecycle_default_logger<T, Uuid>;
-    using base::log_event;
-    using base::print_counters;
-
-    static void expect_values_eq(std::vector<T> const& expected)
-    {
-        EXPECT_THAT(values, ::testing::Pointwise(::testing::Eq(), expected));
-        values.clear();
-    }
-
-    template<class... Args>
-    static constexpr void log_value(Args&&... args)
-    {
-        values.emplace_back(std::forward<Args>(args)...);
-    }
-
-protected:
-    using base::log_counters_format;
-    using base::log_event_format;
-
-private:
-    inline static std::vector<T> values{};
-};
-
-template<class T, bool MultiThreaded = false, size_t Uuid = 0>
-class lc_tracker_tester : std::conditional_t<MultiThreaded, lifecycle_tracker_mt<T, Uuid>, lifecycle_tracker<T, Uuid>>
-{
-    using base = std::conditional_t<MultiThreaded, lifecycle_tracker_mt<T, Uuid>, lifecycle_tracker<T, Uuid>>;
-    using counter_ref_or_value_t = std::conditional_t<MultiThreaded, lifecycle_counters, lifecycle_counters const&>;
-
-public:
-    using base::base;
-    using base::get_counters;
-    using base::get_type_name;
-    using base::print_counters;
-    using base::reset_counters;
-    using base::set_type_name;
-
-    static constexpr counter_ref_or_value_t compare_print_counters(lifecycle_counters const& expected)
-    {
-        auto&& cnts = print_counters();
-        EXPECT_EQ(cnts, expected);
-        return cnts;
-    }
-
-    static constexpr counter_ref_or_value_t compare_get_counters(lifecycle_counters const& expected)
-    {
-        auto&& cnts = get_counters();
-        EXPECT_EQ(cnts, expected);
-        return cnts;
-    }
-};
 
 
 struct MyInt
@@ -76,119 +28,240 @@ struct MyInt
     constexpr bool operator==(MyInt const& rhs) const { return v == rhs.v; }
 };
 
-template<size_t Uuid>
-struct lc_logger_tester<MyInt, Uuid> : lc_logger_tester_base<MyInt, Uuid>
-{
-    using base = lc_logger_tester_base<MyInt, Uuid>;
 
+template<size_t Uuid>
+struct lifecycle_logger<MyInt, Uuid> : lifecycle_default_logger<MyInt, Uuid>
+{
     template<lifecycle_event Cnt>
-    constexpr void log_event(MyInt const& self, std::string const& type_name) const
+    QS_CONSTEXPR17 void log_event(MyInt const& self, std::string const& type_name) const
     {
-        base::log_value(self);
-        fmt::print(base::template log_event_format<Cnt>(), type_name, static_cast<int>(type_name.size()),
-                   type_name.data());
-        fmt::print(" -> [v: {}]\n", self.v);
+        fmt::println(event_fmt_map_[static_cast<size_t>(Cnt)], type_name, self.v);
     }
+
+private:
+    static constexpr std::array<char const*, 6> event_fmt_map_{"{0}(...) -> [v: {1}]",   "{0}({0} const&) -> [v: {1}]",
+                                                               "{0}({0}&&) -> [v: {1}]", "=({0} const&) -> [v: {1}]",
+                                                               "=({0}&&) -> [v: {1}]",   "~{0}() -> [v: {1}]"};
 };
 
-template<size_t Uuid>
-struct lifecycle_logger<MyInt, Uuid> : lc_logger_tester<MyInt, Uuid>
-{};
 
-TEST(LifetimeTracker, CopyTrivialType)
+std::ostream& operator<<(std::ostream& out, lifecycle_counters const& cnts)
 {
-    {
-        std::vector<lc_tracker_tester<MyInt>> vec;
-        vec.reserve(100);
-
-        vec.emplace_back(10);
-        vec.emplace_back(17);
-        lc_tracker_tester<MyInt>::compare_print_counters({2, 0, 0, 0, 0, 0});
-        lc_logger_tester<MyInt>::expect_values_eq({10, 17});
-
-        vec.insert(vec.cend(), {22, 23, 24, 25});
-        lc_tracker_tester<MyInt>::compare_print_counters({6, 4, 0, 0, 0, 4});
-        lc_logger_tester<MyInt>::expect_values_eq({22, 23, 24, 25, 22, 23, 24, 25, 25, 24, 23, 22});
-
-        auto vec_c = vec; // copy
-        lc_tracker_tester<MyInt>::compare_print_counters({6, 10, 0, 0, 0, 4});
-        lc_logger_tester<MyInt>::expect_values_eq({10, 17, 22, 23, 24, 25});
-
-        vec.erase(vec.begin() + 4, vec.end());
-        lc_tracker_tester<MyInt>::compare_print_counters({6, 10, 0, 0, 0, 6});
-        lc_logger_tester<MyInt>::expect_values_eq({25, 24});
-
-        vec.assign({111, 112, 113});
-        lc_tracker_tester<MyInt>::compare_print_counters({9, 10, 0, 3, 0, 10});
-        lc_logger_tester<MyInt>::expect_values_eq({111, 112, 113, 111, 112, 113, 23, 113, 112, 111});
-
-        vec = std::move(vec_c);
-        lc_tracker_tester<MyInt>::compare_print_counters({9, 10, 0, 3, 0, 13});
-        lc_logger_tester<MyInt>::expect_values_eq({113, 112, 111});
-    }
-
-    lc_tracker_tester<MyInt>::compare_print_counters({9, 10, 0, 3, 0, 19});
-    lc_logger_tester<MyInt>::expect_values_eq({25, 24, 23, 22, 17, 10});
+    return out << "{" << cnts.constructor << ", " << cnts.copy_constructor << ", " << cnts.move_constructor << ", "
+               << cnts.copy_assignment << ", " << cnts.move_assignment << ", " << cnts.destructor << "}";
 }
 
 
-template<size_t Uuid>
-struct lc_logger_tester<std::string, Uuid> : lc_logger_tester_base<std::string, Uuid>
+TEST(LifetimeTracker, TrivialType)
 {
-    using base = lc_logger_tester_base<std::string, Uuid>;
-
-    template<lifecycle_event Cnt>
-    constexpr void log_event(std::string const& self, std::string const& type_name) const
     {
-        base::log_value(self);
-        fmt::print(base::template log_event_format<Cnt>(), type_name, static_cast<int>(type_name.size()),
-                   type_name.data());
-        fmt::print(" -> {:?}\n", self);
+        std::vector<lifecycle_tracker<MyInt>> vec;
+        vec.reserve(100);
+
+        EXPECT_STDOUT_EQ(({ vec.emplace_back(10); }), "qs::MyInt(...) -> [v: 10]\n"
+                                                      "qs::MyInt(qs::MyInt const&) -> [v: 10]\n"
+                                                      "~qs::MyInt() -> [v: 10]\n");
+        EXPECT_EQ((lifecycle_tracker<MyInt>::get_counters()), (lifecycle_counters{1, 1, 0, 0, 0, 1}));
+
+        EXPECT_STDOUT_EQ(({ vec.emplace_back(17); }), "qs::MyInt(...) -> [v: 17]\n"
+                                                      "qs::MyInt(qs::MyInt const&) -> [v: 17]\n"
+                                                      "~qs::MyInt() -> [v: 17]\n");
+        EXPECT_EQ((lifecycle_tracker<MyInt>::get_counters()), (lifecycle_counters{2, 2, 0, 0, 0, 2}));
+
+        EXPECT_STDOUT_EQ(({ vec.insert(vec.cend(), {22, 23, 24, 25}); }), "qs::MyInt(...) -> [v: 22]\n"
+                                                                          "qs::MyInt(...) -> [v: 23]\n"
+                                                                          "qs::MyInt(...) -> [v: 24]\n"
+                                                                          "qs::MyInt(...) -> [v: 25]\n"
+                                                                          "qs::MyInt(qs::MyInt const&) -> [v: 22]\n"
+                                                                          "qs::MyInt(qs::MyInt const&) -> [v: 23]\n"
+                                                                          "qs::MyInt(qs::MyInt const&) -> [v: 24]\n"
+                                                                          "qs::MyInt(qs::MyInt const&) -> [v: 25]\n"
+                                                                          "~qs::MyInt() -> [v: 25]\n"
+                                                                          "~qs::MyInt() -> [v: 24]\n"
+                                                                          "~qs::MyInt() -> [v: 23]\n"
+                                                                          "~qs::MyInt() -> [v: 22]\n");
+        EXPECT_EQ((lifecycle_tracker<MyInt>::get_counters()), (lifecycle_counters{6, 6, 0, 0, 0, 6}));
+
+        EXPECT_STDOUT_EQ(({ auto vec_c = vec; }), "qs::MyInt(qs::MyInt const&) -> [v: 10]\n"
+                                                  "qs::MyInt(qs::MyInt const&) -> [v: 17]\n"
+                                                  "qs::MyInt(qs::MyInt const&) -> [v: 22]\n"
+                                                  "qs::MyInt(qs::MyInt const&) -> [v: 23]\n"
+                                                  "qs::MyInt(qs::MyInt const&) -> [v: 24]\n"
+                                                  "qs::MyInt(qs::MyInt const&) -> [v: 25]\n"
+                                                  "~qs::MyInt() -> [v: 25]\n"
+                                                  "~qs::MyInt() -> [v: 24]\n"
+                                                  "~qs::MyInt() -> [v: 23]\n"
+                                                  "~qs::MyInt() -> [v: 22]\n"
+                                                  "~qs::MyInt() -> [v: 17]\n"
+                                                  "~qs::MyInt() -> [v: 10]\n");
+        EXPECT_EQ((lifecycle_tracker<MyInt>::get_counters()), (lifecycle_counters{6, 12, 0, 0, 0, 12}));
+
+
+        EXPECT_STDOUT_EQ(({ vec.erase(vec.begin() + 4, vec.end()); }), "~qs::MyInt() -> [v: 25]\n"
+                                                                       "~qs::MyInt() -> [v: 24]\n");
+        EXPECT_EQ((lifecycle_tracker<MyInt>::get_counters()), (lifecycle_counters{6, 12, 0, 0, 0, 14}));
+
+
+        IGNORE_STDOUT(auto vec_c = vec);
+        EXPECT_EQ((lifecycle_tracker<MyInt>::get_counters()), (lifecycle_counters{6, 16, 0, 0, 0, 14}));
+
+
+        EXPECT_STDOUT_EQ(({ vec_c.assign({111, 112, 113}); }), "qs::MyInt(...) -> [v: 111]\n"
+                                                               "qs::MyInt(...) -> [v: 112]\n"
+                                                               "qs::MyInt(...) -> [v: 113]\n"
+                                                               "=(qs::MyInt const&) -> [v: 111]\n"
+                                                               "=(qs::MyInt const&) -> [v: 112]\n"
+                                                               "=(qs::MyInt const&) -> [v: 113]\n"
+                                                               "~qs::MyInt() -> [v: 23]\n"
+                                                               "~qs::MyInt() -> [v: 113]\n"
+                                                               "~qs::MyInt() -> [v: 112]\n"
+                                                               "~qs::MyInt() -> [v: 111]\n");
+        EXPECT_EQ((lifecycle_tracker<MyInt>::get_counters()), (lifecycle_counters{9, 16, 0, 3, 0, 18}));
+
+
+        EXPECT_STDOUT_EQ(({ vec = std::move(vec_c); }), "~qs::MyInt() -> [v: 23]\n"
+                                                        "~qs::MyInt() -> [v: 22]\n"
+                                                        "~qs::MyInt() -> [v: 17]\n"
+                                                        "~qs::MyInt() -> [v: 10]\n"
+                                                        "qs::MyInt(qs::MyInt const&) -> [v: 111]\n"
+                                                        "qs::MyInt(qs::MyInt const&) -> [v: 112]\n"
+                                                        "qs::MyInt(qs::MyInt const&) -> [v: 113]\n"
+                                                        "~qs::MyInt() -> [v: 113]\n"
+                                                        "~qs::MyInt() -> [v: 112]\n"
+                                                        "~qs::MyInt() -> [v: 111]\n");
+        EXPECT_EQ((lifecycle_tracker<MyInt>::get_counters()), (lifecycle_counters{9, 19, 0, 3, 0, 25}));
+
+
+        testing::internal::CaptureStdout();
     }
-};
+    auto output = testing::internal::GetCapturedStdout();
+    EXPECT_EQ(output, "~qs::MyInt() -> [v: 113]\n"
+                      "~qs::MyInt() -> [v: 112]\n"
+                      "~qs::MyInt() -> [v: 111]\n");
+    EXPECT_EQ((lifecycle_tracker<MyInt>::get_counters()), (lifecycle_counters{9, 19, 0, 3, 0, 28}));
+
+
+    lifecycle_tracker<MyInt>::reset_counters();
+    EXPECT_EQ((lifecycle_tracker<MyInt>::get_counters()), (lifecycle_counters{}));
+}
 
 template<size_t Uuid>
-struct lifecycle_logger<std::string, Uuid> : lc_logger_tester<std::string, Uuid>
-{};
+struct lifecycle_logger<std::string, Uuid> : lifecycle_default_logger<std::string, Uuid>
+{
+    template<lifecycle_event Cnt>
+    QS_CONSTEXPR17 void log_event(std::string const& self, std::string const& type_name) const
+    {
+        fmt::println(event_fmt_map_[static_cast<size_t>(Cnt)], type_name, self);
+    }
+
+private:
+    static constexpr std::array<char const*, 6> event_fmt_map_{"{0}(...) -> {1:?}",   "{0}({0} const&) -> {1:?}",
+                                                               "{0}({0}&&) -> {1:?}", "=({0} const&) -> {1:?}",
+                                                               "=({0}&&) -> {1:?}",   "~{0}() -> {1:?}"};
+};
 
 TEST(LifetimeTracker, StdString)
 {
-    lc_tracker_tester<std::string, true>::set_type_name("std::string");
+    lifecycle_tracker_mt<std::string>::set_type_name("std::string");
 
     {
-        std::vector<lc_tracker_tester<std::string, true>> vec;
+        std::vector<lifecycle_tracker_mt<std::string>> vec;
         vec.reserve(100);
 
-        vec.emplace_back("abc");
-        vec.emplace_back("def");
-        lc_tracker_tester<std::string, true>::compare_print_counters({2, 0, 0, 0, 0, 0});
-        lc_logger_tester<std::string>::expect_values_eq({"abc", "def"});
+        EXPECT_STDOUT_EQ(({ vec.emplace_back("abc"); }), "std::string(...) -> \"abc\"\n"
+                                                         "std::string(std::string const&) -> \"abc\"\n"
+                                                         "~std::string() -> \"abc\"\n");
+        EXPECT_EQ((lifecycle_tracker_mt<std::string>::get_counters()), (lifecycle_counters{1, 1, 0, 0, 0, 1}));
 
-        vec.insert(vec.cend(), {"22", "23", "24", "25"});
-        lc_tracker_tester<std::string, true>::compare_print_counters({6, 4, 0, 0, 0, 4});
-        lc_logger_tester<std::string>::expect_values_eq(
-            {"22", "23", "24", "25", "22", "23", "24", "25", "25", "24", "23", "22"});
 
-        auto vec_c = vec; // copy
-        lc_tracker_tester<std::string, true>::compare_print_counters({6, 10, 0, 0, 0, 4});
-        lc_logger_tester<std::string>::expect_values_eq({"abc", "def", "22", "23", "24", "25"});
+        EXPECT_STDOUT_EQ(({ vec.emplace_back("def"); }), "std::string(...) -> \"def\"\n"
+                                                         "std::string(std::string const&) -> \"def\"\n"
+                                                         "~std::string() -> \"def\"\n");
+        EXPECT_EQ((lifecycle_tracker_mt<std::string>::get_counters()), (lifecycle_counters{2, 2, 0, 0, 0, 2}));
 
-        vec.erase(vec.begin() + 4, vec.end());
-        lc_tracker_tester<std::string, true>::compare_print_counters({6, 10, 0, 0, 0, 6});
-        lc_logger_tester<std::string>::expect_values_eq({"25", "24"});
 
-        vec.assign({"aaaaaaaaaaaaaaaaaaaaaaa", "bbbbbbbbbbbbbbbbbbbbbbb", "ccccccccccccccccccccccc"});
-        lc_tracker_tester<std::string, true>::compare_print_counters({9, 10, 0, 3, 0, 10});
-        lc_logger_tester<std::string>::expect_values_eq(
-            {"aaaaaaaaaaaaaaaaaaaaaaa", "bbbbbbbbbbbbbbbbbbbbbbb", "ccccccccccccccccccccccc", "aaaaaaaaaaaaaaaaaaaaaaa",
-             "bbbbbbbbbbbbbbbbbbbbbbb", "ccccccccccccccccccccccc", "23", "ccccccccccccccccccccccc",
-             "bbbbbbbbbbbbbbbbbbbbbbb", "aaaaaaaaaaaaaaaaaaaaaaa"});
+        EXPECT_STDOUT_EQ(({ vec.insert(vec.cend(), {"22", "23", "24", "25"}); }),
+                         "std::string(...) -> \"22\"\n"
+                         "std::string(...) -> \"23\"\n"
+                         "std::string(...) -> \"24\"\n"
+                         "std::string(...) -> \"25\"\n"
+                         "std::string(std::string const&) -> \"22\"\n"
+                         "std::string(std::string const&) -> \"23\"\n"
+                         "std::string(std::string const&) -> \"24\"\n"
+                         "std::string(std::string const&) -> \"25\"\n"
+                         "~std::string() -> \"25\"\n"
+                         "~std::string() -> \"24\"\n"
+                         "~std::string() -> \"23\"\n"
+                         "~std::string() -> \"22\"\n");
+        EXPECT_EQ((lifecycle_tracker_mt<std::string>::get_counters()), (lifecycle_counters{6, 6, 0, 0, 0, 6}));
 
-        vec = std::move(vec_c);
-        lc_tracker_tester<std::string, true>::compare_print_counters({9, 10, 0, 3, 0, 13});
-        lc_logger_tester<std::string>::expect_values_eq(
-            {"ccccccccccccccccccccccc", "bbbbbbbbbbbbbbbbbbbbbbb", "aaaaaaaaaaaaaaaaaaaaaaa"});
+
+        EXPECT_STDOUT_EQ(({ auto vec_c = vec; }), "std::string(std::string const&) -> \"abc\"\n"
+                                                  "std::string(std::string const&) -> \"def\"\n"
+                                                  "std::string(std::string const&) -> \"22\"\n"
+                                                  "std::string(std::string const&) -> \"23\"\n"
+                                                  "std::string(std::string const&) -> \"24\"\n"
+                                                  "std::string(std::string const&) -> \"25\"\n"
+                                                  "~std::string() -> \"25\"\n"
+                                                  "~std::string() -> \"24\"\n"
+                                                  "~std::string() -> \"23\"\n"
+                                                  "~std::string() -> \"22\"\n"
+                                                  "~std::string() -> \"def\"\n"
+                                                  "~std::string() -> \"abc\"\n");
+        EXPECT_EQ((lifecycle_tracker_mt<std::string>::get_counters()), (lifecycle_counters{6, 12, 0, 0, 0, 12}));
+
+
+        IGNORE_STDOUT(auto vec_c = vec);
+        EXPECT_EQ((lifecycle_tracker_mt<std::string>::get_counters()), (lifecycle_counters{6, 18, 0, 0, 0, 12}));
+
+
+        EXPECT_STDOUT_EQ(({ vec_c.erase(vec_c.begin() + 4, vec_c.end()); }), "~std::string() -> \"25\"\n"
+                                                                             "~std::string() -> \"24\"\n");
+        EXPECT_EQ((lifecycle_tracker_mt<std::string>::get_counters()), (lifecycle_counters{6, 18, 0, 0, 0, 14}));
+
+
+        EXPECT_STDOUT_EQ(
+            ({ vec_c.assign({"aaaaaaaaaaaaaaaaaaaaaaa", "bbbbbbbbbbbbbbbbbbbbbbb", "ccccccccccccccccccccccc"}); }),
+            "std::string(...) -> \"aaaaaaaaaaaaaaaaaaaaaaa\"\n"
+            "std::string(...) -> \"bbbbbbbbbbbbbbbbbbbbbbb\"\n"
+            "std::string(...) -> \"ccccccccccccccccccccccc\"\n"
+            "=(std::string const&) -> \"aaaaaaaaaaaaaaaaaaaaaaa\"\n"
+            "=(std::string const&) -> \"bbbbbbbbbbbbbbbbbbbbbbb\"\n"
+            "=(std::string const&) -> \"ccccccccccccccccccccccc\"\n"
+            "~std::string() -> \"23\"\n"
+            "~std::string() -> \"ccccccccccccccccccccccc\"\n"
+            "~std::string() -> \"bbbbbbbbbbbbbbbbbbbbbbb\"\n"
+            "~std::string() -> \"aaaaaaaaaaaaaaaaaaaaaaa\"\n");
+        EXPECT_EQ((lifecycle_tracker_mt<std::string>::get_counters()), (lifecycle_counters{9, 18, 0, 3, 0, 18}));
+
+
+        EXPECT_STDOUT_EQ(({ vec = std::move(vec_c); }),
+                         "~std::string() -> \"25\"\n"
+                         "~std::string() -> \"24\"\n"
+                         "~std::string() -> \"23\"\n"
+                         "~std::string() -> \"22\"\n"
+                         "~std::string() -> \"def\"\n"
+                         "~std::string() -> \"abc\"\n"
+                         "std::string(std::string const&) -> \"aaaaaaaaaaaaaaaaaaaaaaa\"\n"
+                         "std::string(std::string const&) -> \"bbbbbbbbbbbbbbbbbbbbbbb\"\n"
+                         "std::string(std::string const&) -> \"ccccccccccccccccccccccc\"\n"
+                         "~std::string() -> \"ccccccccccccccccccccccc\"\n"
+                         "~std::string() -> \"bbbbbbbbbbbbbbbbbbbbbbb\"\n"
+                         "~std::string() -> \"aaaaaaaaaaaaaaaaaaaaaaa\"\n");
+        EXPECT_EQ((lifecycle_tracker_mt<std::string>::get_counters()), (lifecycle_counters{9, 21, 0, 3, 0, 27}));
+
+
+        testing::internal::CaptureStdout();
     }
+    auto output = testing::internal::GetCapturedStdout();
+    EXPECT_EQ(output, "~std::string() -> \"ccccccccccccccccccccccc\"\n"
+                      "~std::string() -> \"bbbbbbbbbbbbbbbbbbbbbbb\"\n"
+                      "~std::string() -> \"aaaaaaaaaaaaaaaaaaaaaaa\"\n");
+    EXPECT_EQ((lifecycle_tracker_mt<std::string>::get_counters()), (lifecycle_counters{9, 21, 0, 3, 0, 30}));
+
+
+    lifecycle_tracker_mt<std::string>::reset_counters();
+    EXPECT_EQ((lifecycle_tracker_mt<std::string>::get_counters()), (lifecycle_counters{}));
 }
 
 

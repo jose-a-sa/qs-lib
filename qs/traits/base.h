@@ -162,7 +162,7 @@ template<typename T, typename U, template<typename> class TQual, template<typena
 struct basic_common_reference
 {};
 
-
+// NOTE: std::common_reference and std::common_reference_with are implemented in C++20, workaround for C++11
 namespace intl
 {
     template<class X, class Y>
@@ -326,15 +326,64 @@ struct is_assignable_from
 // [concept.swappable]
 // -----------------------------------------------------------------------------
 
-// NOTE: std::is_swappable and std::is_swappable_with are implemented in C++17
+// NOTE: std::is_swappable and std::is_swappable_with are implemented in C++17, workaround for C++11
+namespace intl
+{
+    template<class T, class U = T, bool IsNonVoid = !std::is_void<T>::value && !std::is_void<U>::value>
+    class is_swappable_with_impl
+    {
+        template<class L, class R, class Res = decltype(std::swap(std::declval<L>(), std::declval<R>()))>
+        static auto test(int) -> std::true_type;
+        template<class, class>
+        static auto test(...) -> std::false_type;
 
-template<class T>
-struct is_swappable : std::is_swappable<T>
-{};
+    public:
+        static constexpr bool value = decltype(test<T, U>(0))::value && decltype(test<U, T>(0))::value;
+    };
+
+    template<class T, class U>
+    class is_swappable_with_impl<T, U, false> : std::false_type
+    {};
+
+
+    template<class T, class U = T, bool Swappable = is_swappable_with_impl<T, U>::value>
+    struct is_nothrow_swappable_with_impl
+    {
+        static constexpr bool value =
+#if QS_EXCEPTIONS
+            noexcept(std::swap(std::declval<T>(), std::declval<U>())) &&
+            noexcept(std::swap(std::declval<U>(), std::declval<T>()));
+#else
+            false;
+#endif
+    };
+
+    template<class T, class U>
+    struct is_nothrow_swappable_with_impl<T, U, false> : std::false_type
+    {};
+} // namespace intl
 
 
 template<class T, class U>
-struct is_swappable_with : std::is_swappable_with<T, U>
+struct is_swappable_with : std::integral_constant<bool, intl::is_swappable_with_impl<T, U>::value>
+{};
+
+
+template<class T>
+struct is_swappable
+    : conditional_t<is_referenceable<T>::value, is_swappable_with<add_lvalue_reference_t<T>, add_lvalue_reference_t<T>>,
+                    std::false_type>
+{};
+
+template<class T, class U>
+struct is_nothrow_swappable_with : std::integral_constant<bool, intl::is_nothrow_swappable_with_impl<T, U>::value>
+{};
+
+template<class T>
+struct is_nothrow_swappable
+    : public conditional_t<is_referenceable<T>::value,
+                           is_nothrow_swappable_with<add_lvalue_reference_t<T>, add_lvalue_reference_t<T>>,
+                           std::false_type>
 {};
 
 

@@ -6,6 +6,7 @@
 #include <qs/traits/base.h>
 
 #include <array>
+#include <deque>
 #include <iterator>
 #include <string>
 #include <type_traits>
@@ -356,6 +357,26 @@ struct is_contiguous_iterator : intl::is_std_contiguous_iterator<Iter>
 template<class T>
 struct is_contiguous_iterator<T*> : std::true_type
 {};
+
+
+// -----------------------------------------------------------------------------
+// SANITY CHECKS
+// -----------------------------------------------------------------------------
+
+static_assert(is_contiguous_iterator<int*>::value, "int* is a contiguous iterator");
+static_assert(is_contiguous_iterator<std::vector<int>::iterator>::value,
+              "vector<int>::iterator is a contiguous iterator");
+static_assert(is_contiguous_iterator<std::array<int, 1>::iterator>::value,
+              "array<int, 1>::iterator is a contiguous iterator");
+static_assert(is_contiguous_iterator<std::string::iterator>::value, "string::iterator is a contiguous iterator");
+#if defined(__cpp_lib_string_view)
+static_assert(is_contiguous_iterator<std::string_view::iterator>::value,
+              "string_view::iterator is a contiguous iterator");
+#endif
+static_assert(!is_contiguous_iterator<std::reverse_iterator<int*>>::value,
+              "reverse_iterator<int*> is not a contiguous iterator");
+static_assert(!is_contiguous_iterator<std::deque<int>::iterator>::value,
+              "deque<int>::iterator is not a contiguous iterator");
 
 
 QS_NAMESPACE_END

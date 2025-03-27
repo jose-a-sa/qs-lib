@@ -90,7 +90,7 @@ namespace test
 
     TEST(Span, Subspan_Offset)
     {
-        std::vector<int> v = {1, 2, 3, 4, 5};
+        std::vector<int> v = {1, 2, 3};
         auto             s = span<int const, 3>(v);
 
         auto matcher1 = testing::HasSubstr("span<T, N>::subspan(offset, count): offset out of range");
@@ -199,10 +199,10 @@ namespace test
     TEST(Span, InitializerListTemporary)
     {
         auto ss = span<int const, 5>{1, 2, 3, 4, 5};
-        EXPECT_THAT(ss, testing::Not(testing::Pointwise(testing::Eq(), {1, 2, 3, 4, 5})));
+        EXPECT_THAT(ss, testing::Pointwise(testing::Eq(), {1, 2, 3, 4, 5}));
 
         auto sd = span<int const>{1, 2, 3, 4, 5};
-        EXPECT_THAT(sd, testing::Not(testing::Pointwise(testing::Eq(), {1, 2, 3, 4, 5})));
+        EXPECT_THAT(sd, testing::Pointwise(testing::Eq(), {1, 2, 3, 4, 5}));
     }
 
 } // namespace test

@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.24) # or higher if applicable
 project(qs)
 
 # Main options
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
 
@@ -28,12 +28,14 @@ include(cmake/FetchFmtLib.cmake)
 
 # Add main folder as include directory
 include_directories(${CMAKE_SOURCE_DIR})
+message(STATUS "ALL DIRS: ${fmt_SOURCE_DIR}/include")
 
 # Add source library (this can be updated to add to use add_subdirectory too)
 file(GLOB_RECURSE qs_SRC "qs/*.cpp" "qs/*.h" "qs/**/*.cpp" "qs/**/*.h")
-add_library(qs ${qs_SRC})
+add_library(qs STATIC ${qs_SRC})
 target_link_libraries(qs PRIVATE fmt::fmt)
 add_library(qs::qs ALIAS qs)
+
 
 # Build testing binaries
 if(BUILD_TESTING)

@@ -4,10 +4,11 @@
 #include <cstddef> // requires for _HAS_EXCEPTIONS on MSVC
 #include <cstdio>
 #include <cstdlib>
+#include <exception>
+#include <initializer_list>
 #include <stdexcept>
 #include <type_traits>
 #include <version>
-#include <initializer_list>
 
 
 #define QS_NAMESPACE qs
@@ -22,7 +23,7 @@
 // Concatenation
 #define QS_CONCAT(A, B) A##B
 
-// #define QS_COMPILER_VERSION_CONCAT(major, minor, patch) (10 * (10 * (major) + (minor)) + (patch))
+// #define QS_COMPILER_VERSION_CONCAT(major, minor, patch) (100 * (100 * (major) + (minor)) + (patch))
 #define QS_COMPILER_VERSION_CONCAT(major, minor, patch) ((100 * (major)) + (minor))
 // Define a in between macro
 #define QS_IN_BETWEEN(x, a, b) ((a) <= (x) && (x) < (b))
@@ -33,11 +34,13 @@
 #else
 #define QS_CLANG_VERSION 0
 #endif
+
 #if defined(__GNUC__) && !defined(__clang__) && !defined(__INTEL_COMPILER)
 #define QS_GCC_VERSION QS_COMPILER_VERSION_CONCAT(__GNUC__, __GNUC_MINOR__, __GNUC_PATCHLEVEL__)
 #else
 #define QS_GCC_VERSION 0
 #endif
+
 #if defined(__ICL)
 #define QS_ICC_VERSION __ICL
 #elif defined(__INTEL_COMPILER)
@@ -45,6 +48,7 @@
 #else
 #define QS_ICC_VERSION 0
 #endif
+
 #if defined(_MSC_VER)
 #define QS_MSVC_VERSION _MSC_VER
 #else
@@ -299,6 +303,16 @@
 #define QS_ALWAYS_INLINE inline
 #endif
 
+#ifdef QS_NOINLINE
+// Use the provided definition.
+#elif defined(QS_GCC_VERSION) || defined(QS_CLANG_VERSION)
+#define QS_NOINLINE __attribute__((noinline))
+#elif defined(QS_MSVC_VERSION)
+#define QS_NOINLINE __declspec(noinline)
+#else
+#define QS_NOINLINE
+#endif
+
 #ifdef QS_INLINE
 // A version of QS_INLINE to prevent code bloat in debug mode.
 #elif QS_DEBUG
@@ -401,7 +415,23 @@ namespace intl
     template<template<class...> class, class...>
     static constexpr auto is_valid_expansion_impl(...) -> std::false_type;
 
+    // do_not_optimize for clang llvm
 
+    template<class T>
+    QS_ALWAYS_INLINE void do_not_optimize(T const& value)
+    {
+        asm volatile("" : : "r,m"(value) : "memory");
+    }
+
+    template<class T>
+    QS_ALWAYS_INLINE void do_not_optimize(T& value)
+    {
+#if defined(__clang__)
+        asm volatile("" : "+r,m"(value) : : "memory");
+#else
+        asm volatile("" : "+m,r"(value) : : "memory");
+#endif
+    }
 } // namespace intl
 
 
@@ -435,7 +465,7 @@ struct contract_violation<contract_violation_mode::terminate>
     QS_NORETURN QS_ALWAYS_INLINE static QS_CONSTEXPR17 void fail(char const* file, int line, char const* msg) noexcept
     {
         std::fprintf(stderr, "[%s:%d] assert_fail: %s\n", file, line, msg);
-        std::abort();
+        std::terminate();
     }
 };
 
@@ -452,7 +482,6 @@ namespace config
     QS_INLINE_VAR static QS_CONSTEXPR11 contract_violation_mode contract_violation_mode =
         contract_violation_mode::terminate;
 } // namespace config
-
 
 
 template<class... Args>
@@ -555,6 +584,24 @@ QS_INLINE QS_CONSTEXPR17 bool is_constant_evaluated(bool const default_value = f
 #endif
 }
 
+#if QS_HAS_BUILTIN(__is_referenceable)
+template<class T>
+struct is_referenceable : std::integral_constant<bool, __is_referenceable(T)>
+{};
+#else
+template<class T>
+class is_referenceable
+{
+    template<class U, class Res = U&>
+    static auto test(int) -> std::true_type;
+    template<class>
+    static auto test(...) -> std::false_type;
+
+public:
+    static constexpr bool value = decltype(test<T>(0))::value;
+};
+#endif // QS_HAS_BUILTIN(__is_referenceable)
+
 
 // -----------------------------------------------------------------------------
 // size, data, empty, ssize
@@ -596,31 +643,31 @@ constexpr size_t size(T (&)[N]) noexcept
 
 // std::empty
 template<class C>
-QS_NODISCARD constexpr auto empty(C const& c) -> decltype(c.empty())
+QS_NODISCARD QS_CONSTEXPR14 auto empty(C const& c) -> decltype(c.empty())
 {
     return c.empty();
 }
 template<class T, size_t N>
-QS_NODISCARD constexpr bool empty(const T (&array)[N]) noexcept
+QS_NODISCARD bool empty(const T (&array)[N]) noexcept
 {
     intl::ignore_unused(array);
     return false;
 }
 template<class T>
-QS_NODISCARD constexpr bool empty(std::initializer_list<T> il) noexcept
+QS_NODISCARD QS_CONSTEXPR14 bool empty(std::initializer_list<T> il) noexcept
 {
     return il.size() == 0;
 }
 
 // std::ssize
 template<class C>
-constexpr auto ssize(C const& c) -> common_type_t<ptrdiff_t, typename std::make_signed<decltype(c.size())>::type>
+QS_CONSTEXPR14 auto ssize(C const& c) -> common_type_t<ptrdiff_t, typename std::make_signed<decltype(c.size())>::type>
 {
     using R = common_type_t<ptrdiff_t, typename std::make_signed<decltype(c.size())>::type>;
     return static_cast<R>(c.size());
 }
 template<class T, ptrdiff_t N>
-constexpr ptrdiff_t ssize(const T (&array)[N]) noexcept
+QS_CONSTEXPR14 ptrdiff_t ssize(const T (&array)[N]) noexcept
 {
     intl::ignore_unused(array);
     return N;
@@ -632,14 +679,14 @@ constexpr ptrdiff_t ssize(const T (&array)[N]) noexcept
 // -----------------------------------------------------------------------------
 
 
-QS_INLINE_VAR static QS_CONSTEXPR11 bool is_nothrow_contract_violation =
+QS_INLINE_VAR static constexpr bool is_nothrow_contract_violation =
     noexcept(contract_violation<config::contract_violation_mode>::fail("", 0, ""));
 
 
 #ifdef QS_ASSERT
 // Use the provided definition.
 #elif !QS_DEBUG
-#define QS_ASSERT(condition, message) (QS_NAMESPACE::intl::ignore_unused)((condition), (message)) // Avoid -Wempty-body.
+#define QS_ASSERT(condition, message) (void)((QS_NAMESPACE::intl::ignore_unused)(condition, message))
 #else
 #define QS_ASSERT(condition, message)                                                                                  \
     (QS_LIKELY(condition) ? ((QS_NAMESPACE::intl::ignore_unused)(message))                                             \
@@ -660,7 +707,7 @@ QS_INLINE_VAR static QS_CONSTEXPR11 bool is_nothrow_contract_violation =
 #include <utility>
 #define QS_ASSUME(condition) std::assume(condition)
 #else
-#define QS_ASSUME(condition) ((QS_NAMESPACE::intl::ignore_unused)(condition))
+#define QS_ASSUME(condition)
 #endif
 // clang-format on
 

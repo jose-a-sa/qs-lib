@@ -105,8 +105,8 @@ template<class Rng>
 class is_contiguous_range : std::false_type
 {
     template<class R, class It = iterator_t<R>, class Ref = range_reference_t<R>,
-             class D = decltype(qs::data(std::declval<R&>()))>
-    static constexpr auto test(int) -> conjunction<is_same_as<D, add_pointer_t<Ref>>, is_contiguous_iterator<It>>;
+             class Sz = decltype(qs::data(std::declval<R&>()))>
+    static constexpr auto test(int) -> conjunction<is_same_as<Sz, add_pointer_t<Ref>>, is_contiguous_iterator<It>>;
     template<class>
     static constexpr auto test(...) -> std::false_type;
 

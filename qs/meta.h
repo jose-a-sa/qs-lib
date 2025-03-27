@@ -15,7 +15,7 @@ namespace meta
     using t = typename T::type;
 
     template<class T>
-    constexpr auto v() noexcept
+    constexpr auto v() noexcept -> decltype(T::value)
     {
         return T::value;
     }
@@ -41,7 +41,7 @@ namespace meta
     struct list_concat;
 
     template<class... Ls>
-    using list_concat_t = t<list_concat<Ls...>>;
+    using list_concat_t = meta::t<list_concat<Ls...>>;
 
     template<>
     struct list_concat<> : type_identity<list<>>
@@ -66,7 +66,7 @@ namespace meta
     struct reverse_list;
 
     template<class L>
-    using reverse_list_t = t<reverse_list<L>>;
+    using reverse_list_t = meta::t<reverse_list<L>>;
 
     template<>
     struct reverse_list<list<>> : type_identity<list<>>
@@ -94,7 +94,7 @@ namespace meta
     using apply_t = meta::t<meta::apply<Fn, Args...>>;
 
     template<template<class...> class Fn, class... Args>
-    constexpr auto apply_v()
+    constexpr auto apply_v() -> decltype(meta::v<meta::apply<Fn, Args...>>)
     {
         return meta::v<meta::apply<Fn, Args...>>();
     };
@@ -108,7 +108,7 @@ namespace meta
     using invoke_t = meta::t<meta::invoke<Fn, Args...>>;
 
     template<class Fn, class... Args>
-    constexpr auto invoke_v()
+    constexpr auto invoke_v() -> decltype(meta::v<meta::invoke<Fn, Args...>>)
     {
         return meta::v<meta::invoke<Fn, Args...>>();
     };

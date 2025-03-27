@@ -24,6 +24,7 @@
 #ifndef QS_LIFECYCLE_TRACKER_H
 #define QS_LIFECYCLE_TRACKER_H
 
+#include <qs/concurrency/cache_aligned.h>
 #include <qs/config.h>
 #include <qs/utils/demangler.h>
 
@@ -89,11 +90,8 @@ struct lifecycle_counters
     size_t destructor;
 
     // Methods to calculate total constructed, assigned, and alive objects
-    constexpr size_t total_constructed() const noexcept
-    {
-        return constructor + copy_constructor + move_constructor;
-    }
-    constexpr size_t total_assigned() const noexcept { return copy_assignment + move_assignment; }
+    constexpr size_t    total_constructed() const noexcept { return constructor + copy_constructor + move_constructor; }
+    constexpr size_t    total_assigned() const noexcept { return copy_assignment + move_assignment; }
     constexpr ptrdiff_t alive() const noexcept
     {
         return static_cast<ptrdiff_t>(total_constructed()) - static_cast<ptrdiff_t>(destructor);
@@ -152,20 +150,17 @@ struct lifecycle_default_logger
     QS_CONSTEXPR17 void log_event(const_reference self, std::string const& type_name) const
     {
         intl::ignore_unused(self);
-        QS_LIFECYCLE_LOGGER_PRINT(log_event_format<Cnt>(),
-                                  QS_LIFECYCLE_LOGGER_STRING_ARG(type_name),
+        QS_LIFECYCLE_LOGGER_PRINT(log_event_format<Cnt>(), QS_LIFECYCLE_LOGGER_STRING_ARG(type_name),
                                   QS_LIFECYCLE_LOGGER_STRING_ARG(type_name));
     }
 
     // Print lifecycle counters
-    QS_CONSTEXPR17 void print_counters(lifecycle_counters const& cnts,
-                                       std::string const&        type_name) const
+    QS_CONSTEXPR17 void print_counters(lifecycle_counters const& cnts, std::string const& type_name) const
     {
-        QS_LIFECYCLE_LOGGER_PRINT(log_counters_format(), QS_LIFECYCLE_LOGGER_STRING_ARG(type_name),
-                                  Uuid, cnts.total_constructed(), cnts.constructor,
-                                  cnts.copy_constructor, cnts.move_constructor,
-                                  cnts.total_assigned(), cnts.copy_assignment, cnts.move_assignment,
-                                  cnts.destructor, cnts.alive());
+        QS_LIFECYCLE_LOGGER_PRINT(log_counters_format(), QS_LIFECYCLE_LOGGER_STRING_ARG(type_name), Uuid,
+                                  cnts.total_constructed(), cnts.constructor, cnts.copy_constructor,
+                                  cnts.move_constructor, cnts.total_assigned(), cnts.copy_assignment,
+                                  cnts.move_assignment, cnts.destructor, cnts.alive());
     }
 
 protected:
@@ -183,20 +178,18 @@ private:
     // Format strings for different logging libraries
 #if QS_LIFECYCLE_TRACKER_WITH_FMTLIB || defined(__cpp_lib_print)
     QS_INLINE_VAR static constexpr std::array<char const*, 6> event_fmt_map_{
-        "{}(...)", "{}({} const&)", "{}({}&&)", "=({} const&)", "=({}&&)", "~{}()"};
-    QS_INLINE_VAR static constexpr char const* counter_fmt_ =
-        "Lifecycle tracker [type: {}, uuid: {}]\n"
-        " * constructor (ctor/copy/move) : {:>5} ({}/{}/{})\n"
-        " * assign (copy/move)           : {:>5} ({}/{})\n"
-        " * destructor (alive)           : {:>5} ({})\n";
+        "{}(...)\n", "{}({} const&)\n", "{}({}&&)\n", "=({} const&)\n", "=({}&&)\n", "~{}()\n"};
+    QS_INLINE_VAR static constexpr char const* counter_fmt_ = "Lifecycle tracker [type: {}, uuid: {}]\n"
+                                                              " * constructor (ctor/copy/move) : {:>5} ({}/{}/{})\n"
+                                                              " * assign (copy/move)           : {:>5} ({}/{})\n"
+                                                              " * destructor (alive)           : {:>5} ({})\n";
 #else
     QS_INLINE_VAR static constexpr std::array<char const*, 6> event_fmt_map_{
-        "%.*s(...)", "%.*s(%.*s const&)", "%.*s(%.*s&&)", "=(%.*s const&)", "=(%.*s&&)", "~%.*s()"};
-    QS_INLINE_VAR static constexpr char const* counter_fmt_ =
-        "Lifecycle tracker [type: %.*s, uuid: %zu]\n"
-        " * constructor (ctor/copy/move) : %5zu (%zu/%zu/%zu)\n"
-        " * assign (copy/move)           : %5zu (%zu/%zu)\n"
-        " * destructor (alive)           : %5zu (%td)\n";
+        "%.*s(...)\n", "%.*s(%.*s const&)\n", "%.*s(%.*s&&)\n", "=(%.*s const&)\n", "=(%.*s&&)\n", "~%.*s()\n"};
+    QS_INLINE_VAR static constexpr char const* counter_fmt_ = "Lifecycle tracker [type: %.*s, uuid: %zu]\n"
+                                                              " * constructor (ctor/copy/move) : %5zu (%zu/%zu/%zu)\n"
+                                                              " * assign (copy/move)           : %5zu (%zu/%zu)\n"
+                                                              " * destructor (alive)           : %5zu (%td)\n";
 #endif
 };
 
@@ -225,10 +218,7 @@ namespace intl
 
     public:
         // Constructor
-        QS_CONSTEXPR20 lifecycle_tracker_base()
-        {
-            log_and_increment<lifecycle_event::Constructor>();
-        }
+        QS_CONSTEXPR20 lifecycle_tracker_base() { log_and_increment<lifecycle_event::Constructor>(); }
 
         // Copy constructor
         QS_CONSTEXPR20 lifecycle_tracker_base(lifecycle_tracker_base const&)
@@ -259,10 +249,7 @@ namespace intl
         }
 
         // Destructor
-        QS_CONSTEXPR20 ~lifecycle_tracker_base()
-        {
-            log_and_increment<lifecycle_event::Destructor>();
-        }
+        QS_CONSTEXPR20 ~lifecycle_tracker_base() { log_and_increment<lifecycle_event::Destructor>(); }
 
         // Reset lifecycle counters
         static QS_CONSTEXPR17 void reset_counters() { counters_ = lifecycle_counters{}; }
@@ -280,10 +267,7 @@ namespace intl
 
 #if defined(__cpp_lib_string_view)
         // Set type name using string_view
-        static QS_CONSTEXPR17 void set_type_name(std::string_view const type_name)
-        {
-            type_name_ = type_name;
-        }
+        static QS_CONSTEXPR17 void set_type_name(std::string_view const type_name) { type_name_ = type_name; }
 #else
         // Set type name using char array
         template<size_t N>
@@ -292,10 +276,7 @@ namespace intl
             type_name_.assign(type_name, N - 1);
         }
         // Set type name using string
-        static QS_CONSTEXPR17 void set_type_name(std::string const& type_name)
-        {
-            type_name_ = type_name;
-        }
+        static QS_CONSTEXPR17 void set_type_name(std::string const& type_name) { type_name_ = type_name; }
 #endif
 
         // Get type name
@@ -309,10 +290,7 @@ namespace intl
     protected:
         // Get pointer to derived class
         QS_CONSTEXPR14 Derived*       self() noexcept { return static_cast<Derived*>(this); }
-        QS_CONSTEXPR14 Derived const* self() const noexcept
-        {
-            return static_cast<Derived const*>(this);
-        }
+        QS_CONSTEXPR14 Derived const* self() const noexcept { return static_cast<Derived const*>(this); }
 
     private:
         // Static variables for counters, type name, and logger
@@ -324,9 +302,9 @@ namespace intl
         template<lifecycle_event Cnt>
         static QS_CONSTEXPR11 size_t& get_counter() noexcept
         {
-            return std::get<static_cast<size_t>(Cnt)>(std::tie(
-                counters_.constructor, counters_.copy_constructor, counters_.move_constructor,
-                counters_.copy_assignment, counters_.move_assignment, counters_.destructor));
+            return std::get<static_cast<size_t>(Cnt)>(std::tie(counters_.constructor, counters_.copy_constructor,
+                                                               counters_.move_constructor, counters_.copy_assignment,
+                                                               counters_.move_assignment, counters_.destructor));
         }
 
         // Log event and increment counter
@@ -355,10 +333,7 @@ namespace intl
 
     public:
         // Constructor
-        QS_CONSTEXPR20 lifecycle_tracker_mt_base()
-        {
-            log_and_increment<lifecycle_event::Constructor>();
-        }
+        QS_CONSTEXPR20 lifecycle_tracker_mt_base() { log_and_increment<lifecycle_event::Constructor>(); }
 
         // Copy constructor
         QS_CONSTEXPR20 lifecycle_tracker_mt_base(lifecycle_tracker_mt_base const&)
@@ -381,8 +356,7 @@ namespace intl
         }
 
         // Move assignment operator
-        QS_CONSTEXPR20 lifecycle_tracker_mt_base&
-        operator=(lifecycle_tracker_mt_base&& other) noexcept
+        QS_CONSTEXPR20 lifecycle_tracker_mt_base& operator=(lifecycle_tracker_mt_base&& other) noexcept
         {
             if(this != std::addressof(other))
                 log_and_increment<lifecycle_event::MoveAssignment>();
@@ -390,17 +364,11 @@ namespace intl
         }
 
         // Destructor
-        QS_CONSTEXPR20 ~lifecycle_tracker_mt_base()
-        {
-            log_and_increment<lifecycle_event::Destructor>();
-        }
+        QS_CONSTEXPR20 ~lifecycle_tracker_mt_base() { log_and_increment<lifecycle_event::Destructor>(); }
 
         // Reset lifecycle counters
         static QS_CONSTEXPR17 void reset_counters()
         {
-            // ensure all prior writes are visible after this fence
-            std::atomic_thread_fence(std::memory_order_acquire);
-
             get_counter<lifecycle_event::Constructor>().store(0, std::memory_order_relaxed);
             get_counter<lifecycle_event::CopyConstructor>().store(0, std::memory_order_relaxed);
             get_counter<lifecycle_event::MoveConstructor>().store(0, std::memory_order_relaxed);
@@ -417,26 +385,17 @@ namespace intl
         {
             lifecycle_counters res;
 
-            // ensure all prior writes are visible after this fence
+            // ensure next loads are not reordered before this fence
             std::atomic_thread_fence(std::memory_order_acquire);
 
             // read all counters with relaxed memory order
             // order of reading here is not important
-            res.constructor =
-                get_counter<lifecycle_event::Constructor>().load(std::memory_order_relaxed);
-            res.copy_constructor =
-                get_counter<lifecycle_event::CopyConstructor>().load(std::memory_order_relaxed);
-            res.move_constructor =
-                get_counter<lifecycle_event::MoveConstructor>().load(std::memory_order_relaxed);
-            res.copy_assignment =
-                get_counter<lifecycle_event::CopyAssignment>().load(std::memory_order_relaxed);
-            res.move_assignment =
-                get_counter<lifecycle_event::MoveAssignment>().load(std::memory_order_relaxed);
-            res.destructor =
-                get_counter<lifecycle_event::Destructor>().load(std::memory_order_relaxed);
-
-            // prevent later operations from being reordered before this fence
-            std::atomic_thread_fence(std::memory_order_release);
+            res.constructor      = get_counter<lifecycle_event::Constructor>().load(std::memory_order_relaxed);
+            res.copy_constructor = get_counter<lifecycle_event::CopyConstructor>().load(std::memory_order_relaxed);
+            res.move_constructor = get_counter<lifecycle_event::MoveConstructor>().load(std::memory_order_relaxed);
+            res.copy_assignment  = get_counter<lifecycle_event::CopyAssignment>().load(std::memory_order_relaxed);
+            res.move_assignment  = get_counter<lifecycle_event::MoveAssignment>().load(std::memory_order_relaxed);
+            res.destructor       = get_counter<lifecycle_event::Destructor>().load(std::memory_order_relaxed);
 
             return res;
         }
@@ -451,10 +410,7 @@ namespace intl
 
 #if defined(__cpp_lib_string_view)
         // Set type name using string_view
-        static QS_CONSTEXPR17 void set_type_name(std::string_view const type_name)
-        {
-            type_name_ = type_name;
-        }
+        static QS_CONSTEXPR17 void set_type_name(std::string_view const type_name) { type_name_ = type_name; }
 #else
         // Set type name using char array
         template<size_t N>
@@ -463,10 +419,7 @@ namespace intl
             type_name_.assign(type_name, N - 1);
         }
         // Set type name using string
-        static QS_CONSTEXPR17 void set_type_name(std::string const& type_name)
-        {
-            type_name_ = type_name;
-        }
+        static QS_CONSTEXPR17 void set_type_name(std::string const& type_name) { type_name_ = type_name; }
 #endif
 
         // Get type name
@@ -480,28 +433,19 @@ namespace intl
     protected:
         // Get pointer to derived class
         QS_CONSTEXPR14 Derived*       self() noexcept { return static_cast<Derived*>(this); }
-        QS_CONSTEXPR14 Derived const* self() const noexcept
-        {
-            return static_cast<Derived const*>(this);
-        }
+        QS_CONSTEXPR14 Derived const* self() const noexcept { return static_cast<Derived const*>(this); }
 
     private:
-        // Struct to hold atomic counter
-        struct alignas(QS_CACHELINE_SIZE) atomic_counter_t
-        {
-            std::atomic<size_t> value{};
-        };
-
         // Static variables for counters, type name, and logger
-        QS_INLINE_VAR static atomic_counter_t                  counters_[6] QS_INLINE_VAR_INIT({});
-        QS_INLINE_VAR static std::string type_name_            QS_INLINE_VAR_INIT({});
-        QS_INLINE_VAR static lifecycle_logger<T, Uuid> logger_ QS_INLINE_VAR_INIT({});
+        QS_INLINE_VAR static cache_aligned<std::atomic<size_t>> counters_[6] QS_INLINE_VAR_INIT({});
+        QS_INLINE_VAR static std::string type_name_             QS_INLINE_VAR_INIT({});
+        QS_INLINE_VAR static lifecycle_logger<T, Uuid> logger_  QS_INLINE_VAR_INIT({});
 
         // Get reference to specific counter
         template<lifecycle_event Cnt>
-        static QS_CONSTEXPR11 std::atomic<size_t>& get_counter()
+        static QS_CONSTEXPR11 auto& get_counter()
         {
-            return counters_[static_cast<size_t>(Cnt)].value;
+            return counters_[static_cast<size_t>(Cnt)];
         }
 
         // Log event and increment counter
@@ -520,8 +464,7 @@ namespace intl
 
 #if !defined(__cpp_inline_variables)
     template<class Derived, class T, size_t Uuid>
-    typename lifecycle_tracker_mt_base<Derived, T, Uuid>::atomic_counter_t
-        lifecycle_tracker_mt_base<Derived, T, Uuid>::counters_[6];
+    cache_aligned<std::atomic<size_t>> lifecycle_tracker_mt_base<Derived, T, Uuid>::counters_[6];
     template<class Derived, class T, size_t Uuid>
     std::string lifecycle_tracker_mt_base<Derived, T, Uuid>::type_name_{};
     template<class Derived, class T, size_t Uuid>
@@ -533,8 +476,7 @@ namespace intl
 
 // Lifecycle tracker class
 template<class T, size_t Uuid = 0>
-class lifecycle_tracker : public T,
-                          public intl::lifecycle_tracker_base<lifecycle_tracker<T, Uuid>, T, Uuid>
+class lifecycle_tracker : public T, public intl::lifecycle_tracker_base<lifecycle_tracker<T, Uuid>, T, Uuid>
 {
     using tracker = intl::lifecycle_tracker_base<lifecycle_tracker<T, Uuid>, T, Uuid>;
 
@@ -549,9 +491,7 @@ public:
 
 // Lifecycle tracker class with multi-threading support
 template<class T, size_t Uuid = 0>
-class lifecycle_tracker_mt
-    : public T,
-      public intl::lifecycle_tracker_mt_base<lifecycle_tracker_mt<T, Uuid>, T, Uuid>
+class lifecycle_tracker_mt : public T, public intl::lifecycle_tracker_mt_base<lifecycle_tracker_mt<T, Uuid>, T, Uuid>
 {
     using tracker = intl::lifecycle_tracker_mt_base<lifecycle_tracker_mt<T, Uuid>, T, Uuid>;
 
@@ -567,11 +507,9 @@ public:
 // Specialization for void type
 template<size_t Uuid>
 class lifecycle_tracker<void, Uuid>
-    : public intl::lifecycle_tracker_base<lifecycle_tracker<void, Uuid>,
-                                          lifecycle_tracker<void, Uuid>, Uuid>
+    : public intl::lifecycle_tracker_base<lifecycle_tracker<void, Uuid>, lifecycle_tracker<void, Uuid>, Uuid>
 {
-    using tracker = intl::lifecycle_tracker_base<lifecycle_tracker<void, Uuid>,
-                                                 lifecycle_tracker<void, Uuid>, Uuid>;
+    using tracker = intl::lifecycle_tracker_base<lifecycle_tracker<void, Uuid>, lifecycle_tracker<void, Uuid>, Uuid>;
 
 public:
     using tracker::get_counters;
@@ -583,11 +521,10 @@ public:
 
 template<size_t Uuid>
 class lifecycle_tracker_mt<void, Uuid>
-    : public intl::lifecycle_tracker_mt_base<lifecycle_tracker<void, Uuid>,
-                                             lifecycle_tracker<void, Uuid>, Uuid>
+    : public intl::lifecycle_tracker_mt_base<lifecycle_tracker<void, Uuid>, lifecycle_tracker<void, Uuid>, Uuid>
 {
-    using tracker = intl::lifecycle_tracker_mt_base<lifecycle_tracker_mt<void, Uuid>,
-                                                    lifecycle_tracker_mt<void, Uuid>, Uuid>;
+    using tracker =
+        intl::lifecycle_tracker_mt_base<lifecycle_tracker_mt<void, Uuid>, lifecycle_tracker_mt<void, Uuid>, Uuid>;
 
 public:
     using tracker::get_counters;

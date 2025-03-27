@@ -101,18 +101,18 @@ public:
 
     // NOTE: in optimized builds, temporary initializer_list leaves the span with dangling pointer (undefined state)
     template<class U = element_type, enable_if_t<std::is_const<U>::value, int> = 0>
-    QS_CONSTEXPR11 explicit span(std::initializer_list<value_type> il)
+    QS_CONSTEXPR14 explicit span(std::initializer_list<value_type> il) noexcept(is_nothrow_contract_violation)
         : data_{il.begin()}
     {
         QS_VERIFY(extent == il.size(), "Size mismatch in span's constructor Extent != il.size().");
     }
 
-    QS_CONSTEXPR11       span(const span&) noexcept      = default;
-    QS_CONSTEXPR11 span& operator=(const span&) noexcept = default;
+    QS_CONSTEXPR14       span(const span&) noexcept      = default;
+    QS_CONSTEXPR14 span& operator=(const span&) noexcept = default;
 
     template<class Iterator, enable_if_t<intl::is_span_compatible_iterator<Iterator, element_type>::value, int> = 0>
-    QS_CONSTEXPR11 explicit span(Iterator first, size_type count)
-        : data_{to_address(first)}
+    QS_CONSTEXPR14 explicit span(Iterator first, size_type count) noexcept(is_nothrow_contract_violation)
+        : data_{qs::to_address(first)}
     {
         QS_VERIFY(Extent == dynamic_extent || Extent == count, "size mismatch in span's constructor (iterator, len)");
     }
@@ -121,7 +121,8 @@ public:
              enable_if_t<intl::is_span_compatible_iterator<Iterator, element_type>::value &&
                              intl::is_span_compatible_sentinel<Sentinel, Iterator>::value,
                          int> = 0>
-    QS_CONSTEXPR11 explicit span(Iterator first, Sentinel last)
+    QS_CONSTEXPR14 explicit span(Iterator first,
+                                 Sentinel last) noexcept(is_nothrow_contract_violation && noexcept(last - first))
         : data_(qs::to_address(first))
     {
         // [span.cons]/10
@@ -147,19 +148,19 @@ public:
     {}
 
     template<class V, enable_if_t<intl::is_span_convertible<V, element_type>::value, int> = 0>
-    QS_CONSTEXPR11 span(span<V, Extent> const& other)
+    QS_CONSTEXPR14 span(span<V, Extent> const& other)
         : data_{other.data()}
     {}
 
     template<class V, enable_if_t<intl::is_span_convertible<V, element_type>::value, int> = 0>
-    QS_CONSTEXPR11 explicit span(span<V, dynamic_extent> const& other) noexcept
+    QS_CONSTEXPR14 explicit span(span<V, dynamic_extent> const& other) noexcept(is_nothrow_contract_violation)
         : data_{other.data()}
     {
         QS_VERIFY(Extent == other.size(), "size mismatch in span's constructor (other span)");
     }
 
     template<class Rng, enable_if_t<intl::is_span_compatible_range<Rng, T>::value, int> = 0>
-    QS_CONSTEXPR11 explicit span(Rng&& r)
+    QS_CONSTEXPR14 explicit span(Rng&& r) noexcept(is_nothrow_contract_violation)
         : data_{qs::data(r)}
     {
         QS_VERIFY(Extent == dynamic_extent || Extent == qs::size(r), "size mismatch in span's constructor (range)");
@@ -259,7 +260,7 @@ public:
 private:
     pointer data_;
 
-    QS_NORETURN QS_INLINE QS_CONSTEXPR11 void throw_out_of_range_(char const* const msg) const
+    QS_NORETURN QS_ALWAYS_INLINE QS_CONSTEXPR17 void throw_out_of_range_(char const* const msg) const
     {
         throw std::out_of_range(msg);
     }
@@ -293,17 +294,17 @@ public:
 
     // NOTE: in optimized builds, temporary initializer_list leaves the span with dangling pointer (undefined state)
     template<class U = element_type, enable_if_t<std::is_const<U>::value, int> = 0>
-    QS_CONSTEXPR11 explicit span(std::initializer_list<value_type> il)
+    QS_CONSTEXPR14 explicit span(std::initializer_list<value_type> il)
         : data_{il.begin()},
           size_{il.size()}
     {}
 
-    QS_CONSTEXPR11       span(const span&) noexcept      = default;
-    QS_CONSTEXPR11 span& operator=(const span&) noexcept = default;
+    QS_CONSTEXPR14       span(const span&) noexcept      = default;
+    QS_CONSTEXPR14 span& operator=(const span&) noexcept = default;
 
     template<class Iterator, enable_if_t<intl::is_span_compatible_iterator<Iterator, element_type>::value, int> = 0>
-    QS_CONSTEXPR11 explicit span(Iterator first, size_type count)
-        : data_{to_address(first)},
+    QS_CONSTEXPR14 explicit span(Iterator first, size_type count)
+        : data_{qs::to_address(first)},
           size_{count}
     {}
 
@@ -311,8 +312,9 @@ public:
              enable_if_t<intl::is_span_compatible_iterator<Iterator, element_type>::value &&
                              intl::is_span_compatible_sentinel<Sentinel, Iterator>::value,
                          int> = 0>
-    QS_CONSTEXPR11 explicit span(Iterator first, Sentinel last)
-        : data_(to_address(first)),
+    QS_CONSTEXPR14 explicit span(Iterator first,
+                                 Sentinel last) noexcept(is_nothrow_contract_violation && noexcept(last - first))
+        : data_(qs::to_address(first)),
           size_(last - first)
     {
         QS_VERIFY(last - first >= 0, "invalid range in span's constructor (iterator, sentinel)");
@@ -428,7 +430,7 @@ public:
                        span<T, dynamic_extent>{data() + offset, count}));
     }
 
-    // [span.objectrep], views of object representation
+    // // [span.objectrep], views of object representation
     // QS_CONSTEXPR11 span<byte const, dynamic_extent> as_bytes() const noexcept
     // {
     //     return {reinterpret_cast<const byte*>(data()), size_bytes()};
@@ -443,7 +445,7 @@ private:
     pointer   data_;
     size_type size_;
 
-    QS_NORETURN QS_INLINE QS_CONSTEXPR11 void throw_out_of_range_(char const* const msg) const
+    QS_NORETURN QS_ALWAYS_INLINE QS_CONSTEXPR17 void throw_out_of_range_(char const* const msg) const
     {
         throw std::out_of_range(msg);
     }
@@ -471,34 +473,63 @@ span(Rng&&) -> span<remove_reference_t<range_reference_t<Rng>>>;
 
 
 template<class T, size_t N>
-QS_CONSTEXPR11 auto as_bytes(span<T, N> s) noexcept -> decltype(auto)
+QS_ALWAYS_INLINE QS_CONSTEXPR11 auto make_span(T (&arr)[N]) -> span<T, N>
 {
-    constexpr auto Count = N == dynamic_extent ? dynamic_extent : N * sizeof(T);
-    return span<byte const, Count>(reinterpret_cast<byte const*>(s.data()), s.size_bytes());
+    return span<T, N>{arr, N};
+}
+
+template<class T, size_t N>
+QS_ALWAYS_INLINE QS_CONSTEXPR11 auto make_span(std::array<T, N>& arr) -> span<T, N>
+{
+    return span<T, N>{arr.data(), arr.size()};
+}
+
+template<class T, size_t N>
+QS_ALWAYS_INLINE QS_CONSTEXPR11 auto make_span(std::array<T, N> const& arr) -> span<T const, N>
+{
+    return span<T const, N>{arr.data(), arr.size()};
+}
+
+template<class Rng, enable_if_t<is_contiguous_range<Rng>::value, int> = 0>
+QS_ALWAYS_INLINE QS_CONSTEXPR11 auto make_span(Rng&& r) -> span<remove_reference_t<range_reference_t<Rng>>>
+{
+    return span<remove_reference_t<range_reference_t<Rng>>>{qs::data(r), qs::size(r)};
+}
+
+// [span.objectrep], views of object representation
+
+template<class T, size_t N>
+QS_ALWAYS_INLINE QS_CONSTEXPR11 auto as_bytes(span<T, N> s) noexcept
+    -> span<byte const, N == dynamic_extent ? dynamic_extent : N * sizeof(T)>
+{
+    using byte_span = span<byte const, N == dynamic_extent ? dynamic_extent : N * sizeof(T)>;
+    return byte_span{reinterpret_cast<byte const*>(s.data()), s.size_bytes()};
 }
 
 
 template<class T, size_t N, enable_if_t<!std::is_const<T>::value, int> = 0>
-QS_CONSTEXPR11 auto as_writable_bytes(span<T, N> s) noexcept -> decltype(auto)
+QS_ALWAYS_INLINE QS_CONSTEXPR11 auto as_writable_bytes(span<T, N> s) noexcept
+    -> span<byte, N == dynamic_extent ? dynamic_extent : N * sizeof(T)>
 {
-    constexpr auto Count = N == dynamic_extent ? dynamic_extent : N * sizeof(T);
-    return span<byte, Count>{reinterpret_cast<byte*>(s.data()), s.size_bytes()};
+    using byte_span = span<byte, N == dynamic_extent ? dynamic_extent : N * sizeof(T)>;
+    return byte_span{reinterpret_cast<byte*>(s.data()), s.size_bytes()};
 }
 
 
 // [span.comparison], span comparison operators
+
 // template<class ElementL, size_t ExtentL, class ElementR, size_t ExtentR>
-// QS_CONSTEXPR11 bool operator==(span<ElementL, ExtentL> l, span<ElementR, ExtentR> r);
+// QS_CONSTEXPR11 bool operator==(span<ElementL, ExtentL> l, span<ElementR, ExtentR> r)
 // template<class ElementL, size_t ExtentL, class ElementR, size_t ExtentR>
-// QS_CONSTEXPR11 bool operator!=(span<ElementL, ExtentL> l, span<ElementR, ExtentR> r);
+// QS_CONSTEXPR14 bool operator!=(span<ElementL, ExtentL> l, span<ElementR, ExtentR> r);
 // template<class ElementL, size_t ExtentL, class ElementR, size_t ExtentR>
-// QS_CONSTEXPR11 bool operator<(span<ElementL, ExtentL> l, span<ElementR, ExtentR> r);
+// QS_CONSTEXPR14 bool operator<(span<ElementL, ExtentL> l, span<ElementR, ExtentR> r);
 // template<class ElementL, size_t ExtentL, class ElementR, size_t ExtentR>
-// QS_CONSTEXPR11 bool operator<=(span<ElementL, ExtentL> l, span<ElementR, ExtentR> r);
+// QS_CONSTEXPR14 bool operator<=(span<ElementL, ExtentL> l, span<ElementR, ExtentR> r);
 // template<class ElementL, size_t ExtentL, class ElementR, size_t ExtentR>
-// QS_CONSTEXPR11 bool operator>(span<ElementL, ExtentL> l, span<ElementR, ExtentR> r);
+// QS_CONSTEXPR14 bool operator>(span<ElementL, ExtentL> l, span<ElementR, ExtentR> r);
 // template<class ElementL, size_t ExtentL, class ElementR, size_t ExtentR>
-// QS_CONSTEXPR11 bool operator>=(span<ElementL, ExtentL> l, span<ElementR, ExtentR> r);
+// QS_CONSTEXPR14 bool operator>=(span<ElementL, ExtentL> l, span<ElementR, ExtentR> r);
 
 QS_NAMESPACE_END
 

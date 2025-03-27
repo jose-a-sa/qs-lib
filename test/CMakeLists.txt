@@ -1,6 +1,6 @@
 # Specify the minimum CMAKE version required
 cmake_minimum_required(VERSION 3.24) # or higher if applicable
-project(qs-test)
+project(qs_test)
 
 # Main options
 # set(CMAKE_CXX_STANDARD 20)
@@ -13,7 +13,6 @@ enable_testing()
 include(../cmake/FetchGoogleTest.cmake)
 
 include(GoogleTest)
-
 
 # Macro that take binary name and folder and creates a test with all .cpp inside
 function(add_test_binary NAME LOCATION_SRC)
@@ -35,12 +34,11 @@ function(add_test_binary NAME LOCATION_SRC)
     # install(TARGETS test_${TARGET_FOLDER} DESTINATION ${CMAKE_SOURCE_DIR}/bin)
 endfunction()
 
-
 function(add_test_binary_folder NAME FOLDER)
     # find all cpp files for testing under the folder
     file(GLOB_RECURSE TEST_SRC
-            ${FOLDER}/**/test_*.cpp
-            ${FOLDER}/test_*.cpp
+        ${FOLDER}/**/test_*.cpp
+        ${FOLDER}/test_*.cpp
     )
 
     # single test for the collection above
@@ -59,11 +57,28 @@ function(add_test_binary_folder NAME FOLDER)
     # install(TARGETS test_${TARGET_FOLDER} DESTINATION ${CMAKE_SOURCE_DIR}/bin)
 endfunction()
 
-
-add_test_binary(fenwick_tree containers/test_fenwick_tree.cpp)
-
-add_test_binary(lifetime_tracker utils/test_lifetime_tracker.cpp)
-
+add_test_binary_folder(all ./)
 add_test_binary(span test_span.cpp)
 
 add_test_binary_folder(traits traits)
+
+add_test_binary_folder(containers containers)
+
+add_test_binary_folder(utils utils)
+
+
+# Loop through the specified C++ standard versions
+foreach(VER 11 14 17 20)
+    # Set the C++ standard version as a variable
+    set(CXX_STD_VER "cxx_std_${VER}")
+    # Define a unique target name for each C++ standard version
+    set(TARGET_NAME test_${CXX_STD_VER})
+    # Create an executable target for the playground test
+    add_executable(${TARGET_NAME} cxx_version_playground.cpp)
+    # Add a preprocessor definition for testing
+    target_compile_definitions(${TARGET_NAME} PRIVATE QS_TESTING)
+    # Specify the required C++ standard version for the target
+    target_compile_features(${TARGET_NAME} PRIVATE ${CXX_STD_VER})
+    # Link the necessary libraries to the target
+    target_link_libraries(${TARGET_NAME} PRIVATE qs::qs fmt::fmt GTest::gmock_main)
+endforeach()
